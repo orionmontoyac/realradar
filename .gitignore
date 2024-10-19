@@ -1,0 +1,50 @@
+# build output
+dist/
+.output/
+
+# dependencies
+node_modules/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# environment variables
+.env
+.env.production
+
+# macOS-specific files
+.DS_Store
+
+# Astro specific
+.astro/
+
+# Optional: cache directories
+.cache/
+.mf/
+
+# Optional: editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Optional: Astro intellisense files
+*.astro-intellisense
+
+# Optional: If you're using TypeScript
+*.tsbuildinfo
+
+# Optional: If you're using pnpm
+pnpm-lock.yaml
+
+# Optional: If you're using Yarn
+yarn.lock
+
+# Optional: Vercel deployment file
+.vercel
