@@ -1,0 +1,200 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+import ContactCTA from "../components/ContactCTA.astro";
+import Hero from "../components/Hero.astro";
+---
+
+<BaseLayout
+    title="Acerca de | Real Radar"
+    description="Acerca de Real Radar: Un proyecto de código abierto y sin fines de lucro"
+>
+    <div class="stack gap-20">
+        <main class="wrapper about">
+            <Hero
+                title="Acerca de"
+                tagline="Gracias por visitar. Lee a continuación para conocer más sobre Real Radar y cómo puedes colaborar."
+            >
+                <img
+                    width="1553"
+                    height="873"
+                    src="/assets/radar-image.jpg"
+                    alt="Imagen representativa de Real Radar"
+                />
+            </Hero>
+
+            <section>
+                <h2 class="section-title">Proyecto</h2>
+                <div class="content">
+                    <p>
+                        Real Radar es un proyecto de código abierto y sin fines
+                        de lucro. Nuestro objetivo es crear una mejor manera de
+                        interactuar con los datos de radar, mejorando la
+                        experiencia del usuario y proporcionando una oportunidad
+                        para aprender nuevas tecnologías.
+                    </p>
+                    <p>
+                        Invitamos a todos a colaborar en nuestro <a
+                            href="https://github.com/real-radar"
+                            >repositorio de GitHub</a
+                        >. Ya seas un desarrollador experimentado o estés
+                        comenzando en el mundo de la programación, tu
+                        contribución es valiosa para nosotros.
+                    </p>
+                </div>
+            </section>
+            <section>
+                <h2 class="section-title">Objetivos</h2>
+                <div class="content">
+                    <p>Nuestros principales objetivos son:</p>
+                    <ul>
+                        <li>Simplificar la interacción con datos de radar</li>
+                        <li>
+                            Mejorar la experiencia del usuario en la
+                            visualización de información meteorológica
+                        </li>
+                        <li>
+                            Crear una plataforma de aprendizaje para nuevas
+                            tecnologías
+                        </li>
+                        <li>
+                            Fomentar la colaboración en la comunidad de código
+                            abierto
+                        </li>
+                    </ul>
+                </div>
+            </section>
+            <section>
+                <h2 class="section-title">Cómo Colaborar</h2>
+                <div class="content">
+                    <p>Hay muchas formas de contribuir a Real Radar:</p>
+                    <ul>
+                        <li>Desarrollando nuevas funcionalidades</li>
+                        <li>Mejorando el código existente</li>
+                        <li>Reportando errores</li>
+                        <li>Sugiriendo mejoras</li>
+                        <li>Creando documentación</li>
+                        <li>Compartiendo el proyecto con otros</li>
+                    </ul>
+                    <p>
+                        Visita nuestro repositorio en GitHub para comenzar.
+                        ¡Toda ayuda es bienvenida!
+                    </p>
+                </div>
+            </section>
+            <!-- <section>
+                <h2 class="section-title">Contribuidores</h2>
+                <div class="content">
+                    <p>
+                        Real Radar es posible gracias a las contribuciones de
+                        personas dedicadas. Aquí están nuestros colaboradores
+                        actuales:
+                    </p>
+                    <ul class="contributors-list">
+                        <li>
+                            <a href="https://github.com/orionmontoyac" target="_blank" rel="noopener noreferrer">
+                                <img src="https://github.com/orionmontoyac.png" alt="Orion Montoya" width="50" height="50" />
+                                <span>Orion Montoya</span>
+                            </a>
+                        </li>
+                    </ul>
+                    <p>
+                        ¿Quieres ver tu nombre aquí? ¡Únete a nuestro proyecto y
+                        contribuye!
+                    </p>
+                </div>
+            </section> -->
+        </main>
+
+        <ContactCTA />
+    </div>
+</BaseLayout>
+
+<style>
+    .about {
+        display: flex;
+        flex-direction: column;
+        gap: 3.5rem;
+    }
+
+    img {
+        margin-top: 1.5rem;
+        border-radius: 1.5rem;
+        box-shadow: var(--shadow-md);
+    }
+
+    section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        color: var(--gray-200);
+    }
+
+    .section-title {
+        grid-column-start: 1;
+        font-size: var(--text-xl);
+        color: var(--gray-0);
+    }
+
+    .content {
+        grid-column: 2 / 4;
+    }
+
+    .content :global(a) {
+        text-decoration: 1px solid underline transparent;
+        text-underline-offset: 0.25em;
+        transition: text-decoration-color var(--theme-transition);
+    }
+
+    .content :global(a:hover),
+    .content :global(a:focus) {
+        text-decoration-color: currentColor;
+    }
+
+    .contributors-list {
+        list-style-type: none;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .contributors-list li {
+        text-align: center;
+    }
+
+    .contributors-list a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-decoration: none;
+        color: var(--gray-200);
+        transition: color var(--theme-transition);
+    }
+
+    .contributors-list a:hover,
+    .contributors-list a:focus {
+        color: var(--gray-0);
+    }
+
+    .contributors-list img {
+        border-radius: 50%;
+        margin-bottom: 0.5rem;
+    }
+
+    @media (min-width: 50em) {
+        .about {
+            display: grid;
+            grid-template-columns: 1fr 60% 1fr;
+        }
+
+        .about > :global(:first-child) {
+            grid-column-start: 2;
+        }
+
+        section {
+            display: contents;
+            font-size: var(--text-lg);
+        }
+    }
+</style>

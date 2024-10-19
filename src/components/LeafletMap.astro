@@ -1,0 +1,243 @@
+---
+// LeafletMap.astro
+---
+
+<div id="map" class="map-container"></div>
+<button id="switchButton" class="switch-button">Est&aacutetico</button>
+
+<style>
+    html,
+    body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    .map-container {
+        height: 100vh;
+        width: 100vw;
+    }
+
+    #map {
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    .refresh-btn {
+        padding: 5px 10px;
+        background-color: white;
+        border: 2px solid rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .refresh-btn:hover {
+        background-color: #f4f4f4;
+    }
+    /* Optional: Smooth rendering for GIF overlay */
+    .leaflet-image-layer {
+        image-rendering: auto; /* Improves GIF rendering */
+    }
+    .switch-button {
+        position: absolute;
+        bottom: 30px;
+        right: 30px;
+        padding: 0.5rem 1rem;
+        z-index: 1000;
+        width: 100px;
+        height: 30px;
+        text-align: center;
+        color: var(--accent-text-over);
+        background-color: var(--accent-regular);
+        font-weight: bold;
+        border: 2px solid var(--navbar-border-color);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, color 0.3s ease;
+        border-radius: 999rem;
+    }
+
+    .switch-button:hover {
+        background-color: var(--accent-dark);
+        transform: scale(1.1);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .switch-button {
+        transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+    }
+</style>
+
+<script>
+    import L from "leaflet";
+    import "leaflet/dist/leaflet.css";
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const mapElement = document.getElementById("map");
+        const switchButton = document.getElementById("switchButton");
+        let currentLayer: L.Layer;
+
+        if (!mapElement || (mapElement as any)._leaflet_id) return;
+
+        const medellinCoords: L.LatLngTuple = [6.2442, -75.5812];
+
+        const map = L.map(mapElement).setView(medellinCoords, 10);
+
+        const baseMaps = {
+            OpenStreetMap: L.tileLayer(
+                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            ),
+            "CartoDB Positron": L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+            ),
+            "Dark Matter": L.tileLayer(
+                "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
+            ),
+        };
+
+        function switchMapLayer(theme: string) {
+            if (currentLayer) {
+                map.removeLayer(currentLayer);
+            }
+
+            if (theme === "dark") {
+                currentLayer = baseMaps["Dark Matter"];
+            } else {
+                currentLayer = baseMaps["OpenStreetMap"];
+            }
+
+            currentLayer.addTo(map);
+        }
+
+        switchMapLayer(
+            document.documentElement.classList.contains("theme-dark")
+                ? "dark"
+                : "light",
+        );
+
+        // L.control.layers(baseMaps).addTo(map);
+
+        const observer = new MutationObserver(() => {
+            const theme = document.documentElement.classList.contains(
+                "theme-dark",
+            )
+                ? "dark"
+                : "light";
+            switchMapLayer(theme);
+        });
+
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ["class"],
+        });
+
+        const imageBounds = L.latLngBounds(
+            L.latLng(5.1004, -76.5946),
+            L.latLng(7.3004, -74.2946),
+        );
+
+        let currentOverlay: L.Layer | null = null;
+        let isAnimated = false;
+
+        function addRadarOverlay() {
+            if (currentOverlay) {
+                map.removeLayer(currentOverlay);
+            }
+
+            const imageUrl = isAnimated
+                ? "/assets/siata_images/rain.gif"
+                : "https://siata.gov.co/CalidadAire/Imagen_Radar/Radar.webp";
+
+            currentOverlay = L.imageOverlay(
+                imageUrl + (isAnimated ? "" : "?t=" + new Date().getTime()),
+                imageBounds,
+                {
+                    opacity: 0.5,
+                    interactive: false,
+                },
+            ).addTo(map);
+        }
+
+        function toggleOverlay() {
+            isAnimated = !isAnimated;
+            addRadarOverlay();
+            if (switchButton) {
+                switchButton.textContent = isAnimated
+                    ? "Animación"
+                    : "Estático";
+            }
+        }
+
+        addRadarOverlay();
+
+        if (switchButton) {
+            switchButton.addEventListener("click", toggleOverlay);
+        }
+
+        const radarCoords = [6.191560470778841, -75.52618723347129];
+
+        setInterval(addRadarOverlay, 2 * 60 * 1000);
+
+        const SwitchControl = L.Control.extend({
+            onAdd: function (map: any) {
+                const container = L.DomUtil.create(
+                    "div",
+                    "leaflet-bar leaflet-control switch-control",
+                );
+                const button = L.DomUtil.create(
+                    "a",
+                    "switch-button",
+                    container,
+                );
+                button.href = "#";
+                button.title = "Switch Overlay";
+                button.innerHTML = "Estático";
+                L.DomEvent.on(button, "click", L.DomEvent.stop).on(
+                    button,
+                    "click",
+                    function () {
+                        toggleOverlay();
+                        button.innerHTML =
+                            button.innerHTML === "Estático"
+                                ? "Animación"
+                                : "Estático";
+                    },
+                );
+                return container;
+            },
+        });
+
+        window.addEventListener("resize", () => {
+            map.invalidateSize();
+        });
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    const userCoords: L.LatLngTuple = [latitude, longitude];
+
+                    map.setView(userCoords, 11);
+
+                    const userIcon = L.icon({
+                        iconUrl: "/assets/pin.svg",
+                        iconSize: [38, 38],
+                        iconAnchor: [22, 38],
+                        popupAnchor: [-3, -38],
+                    });
+                    L.marker(userCoords, { icon: userIcon })
+                        .addTo(map)
+                        .openPopup();
+                    map.setView(userCoords, 9.5);
+                },
+                (error) => {
+                    console.error("Error getting location:", error);
+                    alert("Could not retrieve your location.");
+                },
+            );
+        } else {
+            alert("Geolocation is not supported by your browser.");
+        }
+    });
+</script>
