@@ -75,14 +75,16 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         const mapElement = document.getElementById("map");
-        const switchButton = document.getElementById("switchButton");
+        const switchButton = document.getElementById('switchButton');
         let currentLayer: L.Layer;
 
         if (!mapElement || (mapElement as any)._leaflet_id) return;
 
         const medellinCoords: L.LatLngTuple = [6.2442, -75.5812];
 
-        const map = L.map(mapElement).setView(medellinCoords, 10);
+        const map = L.map(mapElement, {
+            zoomControl: false, // This line disables the zoom buttons
+        }).setView(medellinCoords, 10);
 
         const baseMaps = {
             OpenStreetMap: L.tileLayer(
