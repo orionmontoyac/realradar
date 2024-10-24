@@ -39,33 +39,54 @@
     .leaflet-image-layer {
         image-rendering: auto; /* Improves GIF rendering */
     }
+    /* Styling the toggle button */
     .switch-button {
-        position: absolute;
-        bottom: 30px;
-        right: 30px;
-        padding: 0.5rem 1rem;
+        width: 150px; /* Increased width */
+        height: 40px;
         z-index: 1000;
-        width: 100px;
-        height: 30px;
-        text-align: center;
-        color: var(--accent-text-over);
-        background-color: var(--accent-regular);
-        font-weight: bold;
-        border: 2px solid var(--navbar-border-color);
-        border-radius: 4px;
+        border-radius: 20px;
+        background-color: var(--gray-999);
+        border: none;
         cursor: pointer;
-        transition: background-color 0.3s ease, color 0.3s ease;
-        border-radius: 999rem;
+        position: fixed;
+        bottom: 40px;
+        right: 60px;
+        outline: none;
+        transition: background-color 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center; /* Center the text */
+        padding: 0 10px;
+        font-family: Arial, sans-serif;
+        font-size: var(--text-sm);
+        font-weight: 500;
+        color: white;
+        overflow: hidden; /* Prevent text overflow */
+        text-overflow: ellipsis; /* Add ellipsis for overflowing text */
+        white-space: nowrap; /* Prevent text wrapping */
     }
 
-    .switch-button:hover {
-        background-color: var(--accent-dark);
-        transform: scale(1.1);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    /* Styling the sliding circle */
+    .switch-button::after {
+        content: "";
+        width: 36px;
+        height: 36px;
+        background-color: var(--gray-999);
+        border-radius: 50%;
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        transition: left 0.3s;
     }
 
-    .switch-button {
-        transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+    /* Active state styles */
+    .switch-button.active {
+        background-color: var(--accent-regular);
+        color: white;
+    }
+
+    .switch-button.active::after {
+        left: 112px; /* Adjusted for the wider button */
     }
 </style>
 
@@ -75,7 +96,7 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         const mapElement = document.getElementById("map");
-        const switchButton = document.getElementById('switchButton');
+        const switchButton = document.getElementById("switchButton");
         let currentLayer: L.Layer;
 
         if (!mapElement || (mapElement as any)._leaflet_id) return;
@@ -148,7 +169,7 @@
             }
 
             const imageUrl = isAnimated
-                ? "/assets/siata_images/rain.gif"
+                ? "https://realradar.nyc3.digitaloceanspaces.com/rain.gif"
                 : "https://siata.gov.co/CalidadAire/Imagen_Radar/Radar.webp";
 
             currentOverlay = L.imageOverlay(
@@ -174,9 +195,21 @@
         addRadarOverlay();
 
         if (switchButton) {
-            switchButton.addEventListener("click", toggleOverlay);
-        }
+            switchButton.addEventListener("click", () => {
+                // Toggle the 'active' class on button click
+                switchButton.classList.toggle("active");
 
+                // Update the button text based on its state
+                switchButton.textContent = switchButton.classList.contains(
+                    "active",
+                )
+                    ? "Activo"
+                    : "Estático";
+
+                // Call the toggleOverlay function only if the button is active
+                toggleOverlay(); // Call your overlay function here
+            });
+        }
         const radarCoords = [6.191560470778841, -75.52618723347129];
 
         setInterval(addRadarOverlay, 2 * 60 * 1000);
