@@ -168,7 +168,7 @@
 
             const imageUrl = isAnimated
                 ? "https://realradar.nyc3.digitaloceanspaces.com/rain.gif"
-                : "https://siata.gov.co/CalidadAire/Imagen_Radar/Radar.webp";
+                : "https://realradar.nyc3.digitaloceanspaces.com/last_radar_image.png";
 
             currentOverlay = L.imageOverlay(
                 imageUrl + (isAnimated ? "" : "?t=" + new Date().getTime()),
