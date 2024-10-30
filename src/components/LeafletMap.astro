@@ -35,13 +35,11 @@
     .refresh-btn:hover {
         background-color: #f4f4f4;
     }
-    /* Optional: Smooth rendering for GIF overlay */
     .leaflet-image-layer {
-        image-rendering: auto; /* Improves GIF rendering */
+        image-rendering: auto;
     }
-    /* Styling the toggle button */
     .switch-button {
-        width: 150px; /* Increased width */
+        width: 150px;
         height: 40px;
         z-index: 1000;
         border-radius: 20px;
@@ -55,18 +53,18 @@
         transition: background-color 0.3s;
         display: flex;
         align-items: center;
-        justify-content: center; /* Center the text */
+        justify-content: center;
         padding: 0 10px;
         font-family: Arial, sans-serif;
         font-size: var(--text-sm);
-        font-weight: 500;
-        color: white;
-        overflow: hidden; /* Prevent text overflow */
-        text-overflow: ellipsis; /* Add ellipsis for overflowing text */
-        white-space: nowrap; /* Prevent text wrapping */
+        font-weight: bolder;
+        color: var(--gray-50);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        box-shadow: var(--shadow-md);
     }
 
-    /* Styling the sliding circle */
     .switch-button::after {
         content: "";
         width: 36px;
@@ -77,9 +75,9 @@
         top: 2px;
         left: 2px;
         transition: left 0.3s;
+        color: white;
     }
 
-    /* Active state styles */
     .switch-button.active {
         background-color: var(--accent-regular);
         color: white;
@@ -111,8 +109,8 @@
             OpenStreetMap: L.tileLayer(
                 "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
             ),
-            "CartoDB Positron": L.tileLayer(
-                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+            "Alidade Smooth": L.tileLayer(
+                "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png",
             ),
             "Dark Matter": L.tileLayer(
                 "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
@@ -127,7 +125,7 @@
             if (theme === "dark") {
                 currentLayer = baseMaps["Dark Matter"];
             } else {
-                currentLayer = baseMaps["OpenStreetMap"];
+                currentLayer = baseMaps["Alidade Smooth"];
             }
 
             currentLayer.addTo(map);
