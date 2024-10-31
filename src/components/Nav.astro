@@ -1,26 +1,38 @@
 ---
-import Icon from './Icon.astro';
-import ThemeToggle from './ThemeToggle.astro';
-import type { iconPaths } from './IconPaths';
+import Icon from "./Icon.astro";
+import ThemeToggle from "./ThemeToggle.astro";
+import type { iconPaths } from "./IconPaths";
 
 /** Main menu items */
 const textLinks: { label: string; href: string }[] = [
-	{ label: 'Radar', href: '/' },
-	{ label: 'Contribuir', href: '/contribuir/' },
+	{ label: "Radar", href: "/" },
+	{ label: "Contribuir", href: "/contribuir/" },
 	// { label: 'About', href: '/about/' },
 ];
 
 /** Icon links to social media — edit these with links to your profiles! */
-const iconLinks: { label: string; href: string; icon: keyof typeof iconPaths }[] = [
-	// { label: 'Twitter', href: 'https://twitter.com/me', icon: 'twitter-logo' },
-	{ label: 'GitHub', href: 'https://github.com/orionmontoyac', icon: 'github-logo' },
+const iconLinks: {
+	label: string;
+	href: string;
+	icon: keyof typeof iconPaths;
+}[] = [
+	{
+		label: "GitHub",
+		href: "https://github.com/orionmontoyac/realradar",
+		icon: "github-logo",
+	},
 ];
 ---
 
 <nav>
 	<div class="menu-header">
 		<a href="/" class="site-title">
-			<Icon icon="rain" color="var(--accent-regular)" size="2.0em" gradient />
+			<Icon
+				icon="rain"
+				color="var(--accent-regular)"
+				size="2.0em"
+				gradient
+			/>
 			Real Radar
 		</a>
 		<menu-button>
@@ -40,11 +52,14 @@ const iconLinks: { label: string; href: string; icon: keyof typeof iconPaths }[]
 						<a
 							aria-current={Astro.url.pathname === href}
 							class:list={[
-								'link',
+								"link",
 								{
 									active:
 										Astro.url.pathname === href ||
-										(href !== '/' && Astro.url.pathname.startsWith(href)),
+										(href !== "/" &&
+											Astro.url.pathname.startsWith(
+												href,
+											)),
 								},
 							]}
 							href={href}
@@ -78,11 +93,14 @@ const iconLinks: { label: string; href: string; icon: keyof typeof iconPaths }[]
 						<a
 							aria-current={Astro.url.pathname === href}
 							class:list={[
-								'link',
+								"link",
 								{
 									active:
 										Astro.url.pathname === href ||
-										(href !== '/' && Astro.url.pathname.startsWith(href)),
+										(href !== "/" &&
+											Astro.url.pathname.startsWith(
+												href,
+											)),
 								},
 							]}
 							href={href}
@@ -118,35 +136,39 @@ const iconLinks: { label: string; href: string; icon: keyof typeof iconPaths }[]
 			super();
 
 			// Inject menu toggle button when JS runs.
-			this.appendChild(this.querySelector('template')!.content.cloneNode(true));
-			const btn = this.querySelector('button')!;
+			this.appendChild(
+				this.querySelector("template")!.content.cloneNode(true),
+			);
+			const btn = this.querySelector("button")!;
 
 			// Hide menu (shown by default to support no-JS browsers).
-			const menu = document.getElementById('menu-content')!;
+			const menu = document.getElementById("menu-content")!;
 			menu.hidden = true;
 			// Add "menu-content" class in JS to avoid covering content in non-JS browsers.
-			menu.classList.add('menu-content');
+			menu.classList.add("menu-content");
 
 			/** Set whether the menu is currently expanded or collapsed. */
 			const setExpanded = (expand: boolean) => {
-				btn.setAttribute('aria-expanded', expand ? 'true' : 'false');
+				btn.setAttribute("aria-expanded", expand ? "true" : "false");
 				menu.hidden = !expand;
 			};
 
 			// Toggle menu visibility when the menu button is clicked.
-			btn.addEventListener('click', () => setExpanded(menu.hidden));
+			btn.addEventListener("click", () => setExpanded(menu.hidden));
 
 			// Hide menu button for large screens.
-			const handleViewports = (e: MediaQueryList | MediaQueryListEvent) => {
+			const handleViewports = (
+				e: MediaQueryList | MediaQueryListEvent,
+			) => {
 				setExpanded(e.matches);
 				btn.hidden = e.matches;
 			};
-			const mediaQueries = window.matchMedia('(min-width: 50em)');
+			const mediaQueries = window.matchMedia("(min-width: 50em)");
 			handleViewports(mediaQueries);
-			mediaQueries.addEventListener('change', handleViewports);
+			mediaQueries.addEventListener("change", handleViewports);
 		}
 	}
-	customElements.define('menu-button', MenuButton);
+	customElements.define("menu-button", MenuButton);
 </script>
 
 <style>
@@ -186,7 +208,7 @@ const iconLinks: { label: string; href: string; icon: keyof typeof iconPaths }[]
 		box-shadow: var(--shadow-md);
 	}
 
-	.menu-button[aria-expanded='true'] {
+	.menu-button[aria-expanded="true"] {
 		color: var(--gray-0);
 		background: linear-gradient(180deg, var(--gray-600), transparent),
 			radial-gradient(var(--gray-900), var(--gray-800) 150%);
@@ -199,7 +221,7 @@ const iconLinks: { label: string; href: string; icon: keyof typeof iconPaths }[]
 	.menu-button::before {
 		position: absolute;
 		inset: -1px;
-		content: '';
+		content: "";
 		background: var(--gradient-stroke);
 		border-radius: 999rem;
 		z-index: -1;
@@ -308,7 +330,7 @@ const iconLinks: { label: string; href: string; icon: keyof typeof iconPaths }[]
 		.nav-items::before {
 			position: absolute;
 			inset: -1px;
-			content: '';
+			content: "";
 			background: var(--gradient-stroke);
 			border-radius: 999rem;
 			z-index: -1;
