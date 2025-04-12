@@ -3,9 +3,9 @@
 // https://docs.astro.build/en/core-concepts/layouts/
 
 // Component Imports
-import MainHead from '../components/MainHead.astro';
-import Nav from '../components/Nav.astro';
-import Footer from '../components/Footer.astro';
+import MainHead from "../components/MainHead.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
 
 interface Props {
 	title?: string | undefined;
@@ -18,6 +18,31 @@ const { title, description } = Astro.props;
 <html lang="en">
 	<head>
 		<MainHead title={title} description={description} />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="robots" content="index, follow" />
+		<meta name="author" content="Real Radar Team" />
+		<meta
+			name="keywords"
+			content="radar, Antioquia, clima, meteorología, tiempo, municipios, Colombia, código abierto, open source"
+		/>
+		<meta property="og:title" content={title} />
+		<meta
+			property="og:description"
+			content={description ||
+				"Real Radar es un proyecto de código abierto y sin fines de lucro para interactuar con datos de radar meteorológico en Antioquia y sus municipios."}
+		/>
+		<meta property="og:type" content="website" />
+		<meta property="og:image" content="/assets/og-image.jpg" />
+		<meta property="og:url" content="https://realradar.netlify.app/" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta
+			name="twitter:description"
+			content={description ||
+				"Real Radar es un proyecto de código abierto y sin fines de lucro para interactuar con datos de radar meteorológico en Antioquia y sus municipios."}
+		/>
+		<meta name="twitter:image" content="/assets/og-image.jpg" />
+		<link rel="canonical" href="https://realradar.netlify.app/" />
 	</head>
 	<body>
 		<div class="stack backgrounds">
@@ -28,14 +53,16 @@ const { title, description } = Astro.props;
 
 		<script>
 			// Add “loaded” class once the document has completely loaded.
-			addEventListener('load', () => document.documentElement.classList.add('loaded'));
+			addEventListener("load", () =>
+				document.documentElement.classList.add("loaded"),
+			);
 		</script>
 
 		<style>
 			:root {
 				--_placeholder-bg: linear-gradient(transparent, transparent);
-				--bg-image-main: url('/assets/backgrounds/bg-main-light-800w.jpg');
-				--bg-image-main-curves: url('/assets/backgrounds/bg-main-light.svg');
+				--bg-image-main: url("/assets/backgrounds/bg-main-light-800w.jpg");
+				--bg-image-main-curves: url("/assets/backgrounds/bg-main-light.svg");
 				--bg-image-subtle-1: var(--_placeholder-bg);
 				--bg-image-subtle-2: var(--_placeholder-bg);
 				--bg-image-footer: var(--_placeholder-bg);
@@ -43,13 +70,15 @@ const { title, description } = Astro.props;
 				--bg-blend-mode: darken;
 				--bg-image-aspect-ratio: 2.25;
 				--bg-scale: 1.68;
-				--bg-aspect-ratio: calc(var(--bg-image-aspect-ratio) / var(--bg-scale));
+				--bg-aspect-ratio: calc(
+					var(--bg-image-aspect-ratio) / var(--bg-scale)
+				);
 				--bg-gradient-size: calc(var(--bg-scale) * 100%);
 			}
 
 			:root.theme-dark {
-				--bg-image-main: url('/assets/backgrounds/bg-main-dark-800w.jpg');
-				--bg-image-main-curves: url('/assets/backgrounds/bg-main-dark.svg');
+				--bg-image-main: url("/assets/backgrounds/bg-main-dark-800w.jpg");
+				--bg-image-main-curves: url("/assets/backgrounds/bg-main-dark.svg");
 				--bg-svg-blend-mode: darken;
 				--bg-blend-mode: lighten;
 			}
@@ -57,34 +86,34 @@ const { title, description } = Astro.props;
 			/* These backgrounds are displayed below the fold, so we lazy load them
 			   once the `.loaded` class has been set.  */
 			:root.loaded {
-				--bg-image-subtle-1: url('/assets/backgrounds/bg-subtle-1-light-800w.jpg');
-				--bg-image-subtle-2: url('/assets/backgrounds/bg-subtle-2-light-800w.jpg');
-				--bg-image-footer: url('/assets/backgrounds/bg-footer-light-800w.jpg');
+				--bg-image-subtle-1: url("/assets/backgrounds/bg-subtle-1-light-800w.jpg");
+				--bg-image-subtle-2: url("/assets/backgrounds/bg-subtle-2-light-800w.jpg");
+				--bg-image-footer: url("/assets/backgrounds/bg-footer-light-800w.jpg");
 			}
 			:root.loaded.theme-dark {
-				--bg-image-subtle-1: url('/assets/backgrounds/bg-subtle-1-dark-800w.jpg');
-				--bg-image-subtle-2: url('/assets/backgrounds/bg-subtle-2-dark-800w.jpg');
-				--bg-image-footer: url('/assets/backgrounds/bg-footer-dark-800w.jpg');
+				--bg-image-subtle-1: url("/assets/backgrounds/bg-subtle-1-dark-800w.jpg");
+				--bg-image-subtle-2: url("/assets/backgrounds/bg-subtle-2-dark-800w.jpg");
+				--bg-image-footer: url("/assets/backgrounds/bg-footer-dark-800w.jpg");
 			}
 
 			@media (min-width: 50em) {
 				:root {
 					--bg-scale: 1;
-					--bg-image-main: url('/assets/backgrounds/bg-main-light-1440w.jpg');
+					--bg-image-main: url("/assets/backgrounds/bg-main-light-1440w.jpg");
 				}
 				:root.theme-dark {
-					--bg-image-main: url('/assets/backgrounds/bg-main-dark-1440w.jpg');
+					--bg-image-main: url("/assets/backgrounds/bg-main-dark-1440w.jpg");
 				}
 
 				:root.loaded {
-					--bg-image-subtle-1: url('/assets/backgrounds/bg-subtle-1-light-1440w.jpg');
-					--bg-image-subtle-2: url('/assets/backgrounds/bg-subtle-2-light-1440w.jpg');
-					--bg-image-footer: url('/assets/backgrounds/bg-footer-light-1440w.jpg');
+					--bg-image-subtle-1: url("/assets/backgrounds/bg-subtle-1-light-1440w.jpg");
+					--bg-image-subtle-2: url("/assets/backgrounds/bg-subtle-2-light-1440w.jpg");
+					--bg-image-footer: url("/assets/backgrounds/bg-footer-light-1440w.jpg");
 				}
 				:root.loaded.theme-dark {
-					--bg-image-subtle-1: url('/assets/backgrounds/bg-subtle-1-dark-1440w.jpg');
-					--bg-image-subtle-2: url('/assets/backgrounds/bg-subtle-2-dark-1440w.jpg');
-					--bg-image-footer: url('/assets/backgrounds/bg-footer-dark-1440w.jpg');
+					--bg-image-subtle-1: url("/assets/backgrounds/bg-subtle-1-dark-1440w.jpg");
+					--bg-image-subtle-2: url("/assets/backgrounds/bg-subtle-2-dark-1440w.jpg");
+					--bg-image-footer: url("/assets/backgrounds/bg-footer-dark-1440w.jpg");
 				}
 			}
 
@@ -93,10 +122,13 @@ const { title, description } = Astro.props;
 				isolation: isolate;
 				background:
 					/*noise*/
-					url('/assets/backgrounds/noise.png') top center/220px repeat,
-					/*footer*/ var(--bg-image-footer) bottom center/var(--bg-gradient-size) no-repeat,
-					/*header1*/ var(--bg-image-main-curves) top center/var(--bg-gradient-size) no-repeat,
-					/*header2*/ var(--bg-image-main) top center/var(--bg-gradient-size) no-repeat,
+					url("/assets/backgrounds/noise.png") top center/220px repeat,
+					/*footer*/ var(--bg-image-footer) bottom
+						center/var(--bg-gradient-size) no-repeat,
+					/*header1*/ var(--bg-image-main-curves) top
+						center/var(--bg-gradient-size) no-repeat,
+					/*header2*/ var(--bg-image-main) top
+						center/var(--bg-gradient-size) no-repeat,
 					/*base*/ var(--gray-999);
 				background-blend-mode: /*noise*/
 					overlay,
