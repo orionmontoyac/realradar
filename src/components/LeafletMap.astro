@@ -287,7 +287,7 @@ import Icon from "./Icon.astro";
 
             const imageUrl = isAnimated
                 ? "https://realradar.nyc3.digitaloceanspaces.com/rain.gif"
-                : "https://realradar.nyc3.digitaloceanspaces.com/last_radar_image.png";
+                : "https://siata.gov.co/kml/00_Radar/Ultimo_Barrido/AreaMetRadar_10_120_DBZH.png";
 
             currentOverlay = L.imageOverlay(
                 imageUrl + (isAnimated ? "" : "?t=" + new Date().getTime()),
