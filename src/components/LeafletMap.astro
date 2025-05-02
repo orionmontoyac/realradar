@@ -1,15 +1,12 @@
 ---
 // LeafletMap.astro
 // This component renders an interactive Leaflet map displaying a base layer,
-// a weather radar overlay (switchable between static and animated),
+// a weather radar overlay (switchable between static and JS-animated),
 // the user's current location (if permitted), and the temperature
 // at the user's location or the map center.
 
-import Icon from "./Icon.astro"; // Assuming Icon component displays an SVG icon
+import Icon from "./Icon.astro";
 
-// Component props (if any were needed, they would go here)
-// interface Props {}
-// const {} = Astro.props;
 ---
 
 <div id="map" class="map-container"></div>
@@ -47,6 +44,8 @@ import Icon from "./Icon.astro"; // Assuming Icon component displays an SVG icon
     /* Improve image rendering for overlay */
     .leaflet-image-layer {
         image-rendering: auto; /* Or pixelated if preferred for radar */
+         /* Add transition for smoother image changes, adjust timing as needed */
+        transition: opacity 0.2s ease-in-out;
     }
 
     /* Styling for the overlay switch button */
@@ -88,7 +87,6 @@ import Icon from "./Icon.astro"; // Assuming Icon component displays an SVG icon
         position: fixed;
         bottom: 100px;
         right: 90px;
-        /* Using CSS variables for theming */
         background-color: var(--theme-bg-alpha, rgba(255, 255, 255, 0.9));
         color: var(--theme-text, #000);
         padding: 10px 15px;
@@ -126,40 +124,37 @@ import Icon from "./Icon.astro"; // Assuming Icon component displays an SVG icon
     import L from "leaflet";
     import "leaflet/dist/leaflet.css";
 
-    // Wait for the DOM to be fully loaded before initializing the map
     document.addEventListener("DOMContentLoaded", () => {
         // --- Configuration Constants ---
-        const MEDELLIN_COORDS: L.LatLngTuple = [6.2442, -75.5812]; // Default map center
+        const MEDELLIN_COORDS: L.LatLngTuple = [6.2442, -75.5812];
         const INITIAL_ZOOM = 10;
         const USER_LOCATION_ZOOM = 11;
-        const MIN_ZOOM = 5; // Example: Set a minimum zoom level
-        const MAX_ZOOM = 18; // Example: Set a maximum zoom level
-        const RADAR_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-        const WEATHER_API_KEY = import.meta.env.PUBLIC_WEATHER_API_KEY; // API Key from environment variables
+        const MIN_ZOOM = 5;
+        const MAX_ZOOM = 18;
+        const RADAR_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes (adjust as needed)
+        const WEATHER_API_KEY = import.meta.env.PUBLIC_WEATHER_API_KEY;
         const STATIC_RADAR_URL =
             "https://siata.gov.co/kml/00_Radar/Ultimo_Barrido/AreaMetRadar_10_120_DBZH.png";
-        const ANIMATED_RADAR_URL =
-            "https://realradar.nyc3.digitaloceanspaces.com/rain.gif";
-        // Geographical bounds for the radar image overlay
+        // SIATA API and Image Base Configuration
+        const SIATA_API_ENDPOINT = 'https://siata.gov.co/newpage/widget-animacion_radar-getRadarImages1.php';
+        const SIATA_IMAGE_BASE_URL = 'https://siata.gov.co/';
+        const RADAR_ELEVATION = 10; // Radar elevation angle
+        const RADAR_INTERVAL = 1; // Interval parameter for API
+        const ANIMATION_FRAME_INTERVAL_MS = 500; // Time between animation frames (0.5 seconds)
+
         const RADAR_IMAGE_BOUNDS = L.latLngBounds(
             L.latLng(5.1004, -76.5946), // Southwest corner
-            L.latLng(7.3004, -74.2946), // Northeast corner
+            L.latLng(7.3004, -74.2946)  // Northeast corner
         );
-        const USER_ICON_URL = "/assets/pin.svg"; // Path to the user location marker icon
+        const USER_ICON_URL = "/assets/pin.svg";
+        const ERROR_OVERLAY_URL = '/assets/radar-error.png'; // Optional error image
 
         // --- DOM Element References ---
         const mapElement = document.getElementById("map");
-        const switchButtonElement =
-            document.getElementById("switchButton");
-        const temperatureDisplayElement = document.getElementById(
-            "temperatureDisplay",
-        );
-        const tempValueElement =
-            temperatureDisplayElement?.querySelector<HTMLElement>(".temp-value");
-        const locationNameElement =
-            temperatureDisplayElement?.querySelector<HTMLElement>(
-                ".location-name",
-            );
+        const switchButtonElement = document.getElementById("switchButton");
+        const temperatureDisplayElement = document.getElementById("temperatureDisplay");
+        const tempValueElement = temperatureDisplayElement?.querySelector<HTMLElement>(".temp-value");
+        const locationNameElement = temperatureDisplayElement?.querySelector<HTMLElement>(".location-name");
 
         // --- State Variables ---
         let map: L.Map | null = null;
@@ -167,64 +162,58 @@ import Icon from "./Icon.astro"; // Assuming Icon component displays an SVG icon
         let currentRadarOverlay: L.ImageOverlay | null = null;
         let isRadarAnimated = false;
         let radarUpdateInterval: number | null = null;
+        // Animation specific state
+        let radarFrameUrls: string[] = []; // Holds the URLs for animation frames
+        let currentFrameIndex: number = 0;
+        let animationIntervalId: number | null = null; // ID for the animation setInterval
+        let isFetchingFrames = false; // Flag to prevent multiple fetches
 
         // --- Type Definitions ---
         interface WeatherApiResponse {
             location: { name: string };
             current: { temp_c: number };
         }
+        // Type for the SIATA API response
+        interface SiataRadarImagesResponse {
+            nameImages: string[]; // e.g., "../data/radar/10/20250502/202505021959.png"
+            nameDates: number[];  // Timestamps (likely milliseconds)
+        }
 
         // --- Initialization Check ---
-        // Prevent re-initializing the map if the script runs again (e.g., during HMR)
         if (!mapElement || (mapElement as any)._leaflet_id) {
             console.log("Map container not found or already initialized.");
             return;
         }
         if (!temperatureDisplayElement || !tempValueElement || !locationNameElement) {
             console.error("Temperature display elements not found.");
-            return; // Cannot proceed without temp display
+            return;
         }
 
         // --- Core Functions ---
 
-        /**
-         * Initializes the Leaflet map instance.
-         * @returns {L.Map} The initialized Leaflet map instance.
-         */
         function initializeMap(): L.Map {
             if (!mapElement) {
                 throw new Error("Map container element not found");
             }
             const mapInstance = L.map(mapElement, {
-                zoomControl: false, // Disable default zoom controls
+                zoomControl: false,
                 center: MEDELLIN_COORDS,
                 zoom: INITIAL_ZOOM,
                 minZoom: MIN_ZOOM,
                 maxZoom: MAX_ZOOM,
             });
-
-            // Add zoom control at a different position if desired
             L.control.zoom({ position: "topright" }).addTo(mapInstance);
-
             return mapInstance;
         }
 
-        /**
-         * Defines the available base map tile layers.
-         * @returns {Record<string, L.TileLayer>} An object mapping layer names to TileLayer instances.
-         */
-        function getBaseLayers(): Record<string, L.TileLayer> {
-            // Using Stadia Maps - requires attribution. Add appropriate attribution.
+        function getBaseLayers(): Record<string, L.TileLayer> { /* ... (same as before) ... */
             const stadiaAttribution =
                 '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors';
-
-            return {
-                // Light theme map
+             return {
                 "Alidade Smooth": L.tileLayer(
                     "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png",
                     { attribution: stadiaAttribution, maxZoom: MAX_ZOOM },
                 ),
-                // Dark theme map
                 "Dark Matter": L.tileLayer(
                     "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
                     { attribution: stadiaAttribution, maxZoom: MAX_ZOOM },
@@ -232,26 +221,11 @@ import Icon from "./Icon.astro"; // Assuming Icon component displays an SVG icon
             };
         }
 
-        /**
-         * Switches the base map layer based on the current theme (light/dark).
-         * @param {string} theme - The current theme ('light' or 'dark').
-         * @param {L.Map} mapInstance - The Leaflet map instance.
-         * @param {Record<string, L.TileLayer>} baseLayers - Available base layers.
-         */
-        function switchBaseMapLayer(
-            theme: "light" | "dark",
-            mapInstance: L.Map,
-            baseLayers: Record<string, L.TileLayer>,
-        ): void {
+        function switchBaseMapLayer(theme: "light" | "dark", mapInstance: L.Map, baseLayers: Record<string, L.TileLayer>): void { /* ... (same as before) ... */
             if (currentBaseLayer) {
                 mapInstance.removeLayer(currentBaseLayer);
             }
-
-            const newLayer =
-                theme === "dark"
-                    ? baseLayers["Dark Matter"]
-                    : baseLayers["Alidade Smooth"];
-
+            const newLayer = theme === "dark" ? baseLayers["Dark Matter"] : baseLayers["Alidade Smooth"];
             if (newLayer) {
                 currentBaseLayer = newLayer;
                 currentBaseLayer.addTo(mapInstance);
@@ -260,268 +234,296 @@ import Icon from "./Icon.astro"; // Assuming Icon component displays an SVG icon
             }
         }
 
-        /**
-         * Sets up an observer to automatically switch the map theme when the HTML class changes.
-         * @param {L.Map} mapInstance - The Leaflet map instance.
-         * @param {Record<string, L.TileLayer>} baseLayers - Available base layers.
-         */
-        function setupThemeSwitcher(
-            mapInstance: L.Map,
-            baseLayers: Record<string, L.TileLayer>,
-        ): void {
-            const observer = new MutationObserver(() => {
-                const currentTheme = document.documentElement.classList.contains(
-                    "theme-dark",
-                )
-                    ? "dark"
-                    : "light";
+        function setupThemeSwitcher(mapInstance: L.Map, baseLayers: Record<string, L.TileLayer>): void { /* ... (same as before) ... */
+             const observer = new MutationObserver(() => {
+                const currentTheme = document.documentElement.classList.contains("theme-dark") ? "dark" : "light";
                 switchBaseMapLayer(currentTheme, mapInstance, baseLayers);
             });
-
-            observer.observe(document.documentElement, {
-                attributes: true,
-                attributeFilter: ["class"], // Only observe changes to the 'class' attribute
-            });
-
-            // Initial theme check
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
             const initialTheme = document.documentElement.classList.contains("theme-dark") ? "dark" : "light";
             switchBaseMapLayer(initialTheme, mapInstance, baseLayers);
         }
 
-
-        /**
-         * Updates the content of the temperature display element.
-         * @param {string | number | null} temp - The temperature value (number) or null for N/A.
-         * @param {string | null} location - The location name or null for error/loading state.
-         * @param {boolean} isLoading - Indicates if data is currently loading.
-         * @param {boolean} isError - Indicates if an error occurred.
-         */
-        function updateTemperatureUI(
-            temp: string | number | null,
-            location: string | null,
-            isLoading: boolean = false,
-            isError: boolean = false,
-        ): void {
-             if (!tempValueElement || !locationNameElement) return;
-
+        function updateTemperatureUI(temp: string | number | null, location: string | null, isLoading: boolean = false, isError: boolean = false): void { /* ... (same as before) ... */
+            if (!tempValueElement || !locationNameElement) return;
             if (isLoading) {
-                tempValueElement.textContent = "--°C";
-                locationNameElement.textContent = "Loading...";
+                tempValueElement.textContent = "--°C"; locationNameElement.textContent = "Loading...";
             } else if (isError) {
-                tempValueElement.textContent = "N/A";
-                locationNameElement.textContent = "Error loading data";
+                tempValueElement.textContent = "N/A"; locationNameElement.textContent = "Error loading data";
             } else if (temp !== null && location !== null) {
-                tempValueElement.textContent = `${Math.round(Number(temp))}°C`;
-                locationNameElement.textContent = location;
+                tempValueElement.textContent = `${Math.round(Number(temp))}°C`; locationNameElement.textContent = location;
             } else {
-                 // Handle unexpected nulls if not loading or error
-                tempValueElement.textContent = "N/A";
-                locationNameElement.textContent = "Unavailable";
+                tempValueElement.textContent = "N/A"; locationNameElement.textContent = "Unavailable";
+            }
+        }
+
+        async function fetchTemperature(lat: number, lon: number): Promise<void> { /* ... (same as before) ... */
+            if (!WEATHER_API_KEY) {
+                console.error("Weather API key is missing."); updateTemperatureUI(null, null, false, true); return;
+            }
+            updateTemperatureUI(null, null, true);
+            try {
+                const response = await fetch(`https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${lat},${lon}&aqi=no`);
+                if (!response.ok) { throw new Error(`Weather data fetch failed: ${response.status} ${response.statusText}`); }
+                const data: WeatherApiResponse = await response.json();
+                updateTemperatureUI(data.current.temp_c, data.location.name);
+            } catch (error) {
+                console.error("Error fetching temperature:", error); updateTemperatureUI(null, null, false, true);
             }
         }
 
         /**
-         * Fetches current weather data from the WeatherAPI for given coordinates.
-         * @param {number} lat - Latitude.
-         * @param {number} lon - Longitude.
+         * Fetches the list of radar image URLs from the SIATA API.
+         * @returns {Promise<string[]>} A promise that resolves with an array of full image URLs, or rejects on error.
          */
-        async function fetchTemperature(lat: number, lon: number): Promise<void> {
-            if (!WEATHER_API_KEY) {
-                console.error("Weather API key is missing.");
-                 updateTemperatureUI(null, null, false, true); // Update UI with error
-                return;
-            }
+        async function fetchRadarImageUrls(): Promise<string[]> {
+            // Get current timestamp in seconds for the API
+            const currentTimestampSeconds = Math.floor(Date.now() / 1000);
+            const queryParams = new URLSearchParams({
+                elevation: RADAR_ELEVATION.toString(),
+                date: currentTimestampSeconds.toString(),
+                interval: RADAR_INTERVAL.toString(),
+                nowcasting: 'undefined'
+            });
 
-             updateTemperatureUI(null, null, true); // Show loading state
+            console.log('Fetching radar image list with params:', queryParams.toString());
 
             try {
-                const response = await fetch(
-                    `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${lat},${lon}&aqi=no`,
-                );
+                const response = await fetch(`${SIATA_API_ENDPOINT}?${queryParams.toString()}`, {
+                    headers: {
+                        'Referer': 'https://siata.gov.co/newpage/',
+                        'Origin': 'https://siata.gov.co'
+                    }
+                });
 
                 if (!response.ok) {
-                    // Throw an error with status text for better debugging
-                    throw new Error(`Weather data fetch failed: ${response.status} ${response.statusText}`);
+                    throw new Error(`Failed to fetch radar images list: ${response.status} ${response.statusText}`);
+                }
+                else{
+                    console.info(`Response: ${response.status}`)
                 }
 
-                const data: WeatherApiResponse = await response.json();
-                updateTemperatureUI(data.current.temp_c, data.location.name); // Update UI with data
+                const data: SiataRadarImagesResponse = await response.json();
+                console.log(data)
+                if (!data || !Array.isArray(data.nameImages) || data.nameImages.length === 0) {
+                     throw new Error("Invalid or empty image list received from API.");
+                }
+
+                // Process paths: remove "../" and prepend base URL
+                const fullUrls = data.nameImages.map(relativePath => {
+                    // Remove leading "../" if present
+                    const cleanPath = relativePath.startsWith('../') ? relativePath.substring(3) : relativePath;
+                    return `${SIATA_IMAGE_BASE_URL}${cleanPath}`;
+                });
+
+                console.log(`Workspaceed ${fullUrls.length} radar image URLs.`);
+                return fullUrls;
 
             } catch (error) {
-                console.error("Error fetching temperature:", error);
-                updateTemperatureUI(null, null, false, true); // Update UI with error state
+                console.error("Error fetching radar image URLs:", error);
+                 // Re-throw the error to be caught by the caller
+                throw error;
             }
         }
 
         /**
-         * Adds or updates the weather radar overlay on the map.
-         * Uses the `isRadarAnimated` state to determine which URL to use.
-         * Appends a timestamp to the static URL to prevent caching issues.
+         * Creates the radar ImageOverlay layer if it doesn't exist.
+         * Sets the initial URL (usually the static one or the first frame).
+         * @param {L.Map} mapInstance - The Leaflet map instance.
+         * @param {string} initialImageUrl - The URL for the first image to display.
+         */
+        function ensureRadarOverlay(mapInstance: L.Map, initialImageUrl: string): void {
+            if (!currentRadarOverlay) {
+                 console.log("Creating radar overlay layer.");
+                 currentRadarOverlay = L.imageOverlay(initialImageUrl, RADAR_IMAGE_BOUNDS, {
+                     opacity: 0.6,
+                     interactive: false,
+                     errorOverlayUrl: ERROR_OVERLAY_URL // Placeholder if image fails
+                 }).addTo(mapInstance);
+            } else {
+                // If overlay exists, just update its URL
+                 console.log("Updating existing radar overlay URL.");
+                currentRadarOverlay.setUrl(initialImageUrl);
+            }
+            // Ensure opacity is set correctly (might reset on setUrl)
+            currentRadarOverlay.setOpacity(0.6);
+        }
+
+        /** Clears the animation interval. */
+        function stopRadarAnimation(): void {
+            if (animationIntervalId !== null) {
+                console.log("Stopping radar animation.");
+                clearInterval(animationIntervalId);
+                animationIntervalId = null;
+            }
+            currentFrameIndex = 0; // Reset frame index
+        }
+
+        /**
+         * Fetches radar frames and starts the animation loop.
          * @param {L.Map} mapInstance - The Leaflet map instance.
          */
-        function updateRadarOverlay(mapInstance: L.Map): void {
-            // Remove the previous overlay if it exists
-            if (currentRadarOverlay) {
-                mapInstance.removeLayer(currentRadarOverlay);
-                currentRadarOverlay = null;
-            }
+        async function startRadarAnimation(mapInstance: L.Map): Promise<void> {
+             if (isFetchingFrames) {
+                 console.log("Already fetching frames, skipping.");
+                 return;
+             }
+             stopRadarAnimation(); // Stop any previous animation
+             isFetchingFrames = true;
+             console.log("Starting radar animation: fetching frames...");
 
-            const imageUrl = isRadarAnimated
-                ? ANIMATED_RADAR_URL
-                : `${STATIC_RADAR_URL}?t=${new Date().getTime()}`; // Cache buster for static image
+             try {
+                radarFrameUrls = await fetchRadarImageUrls();
 
-            // Create and add the new image overlay
-            currentRadarOverlay = L.imageOverlay(imageUrl, RADAR_IMAGE_BOUNDS, {
-                opacity: 0.6, // Slightly increased opacity
-                interactive: false, // Overlay doesn't capture mouse events
-                errorOverlayUrl: '/assets/radar-error.png' // Optional: Placeholder if image fails to load
-            }).addTo(mapInstance);
+                if (radarFrameUrls.length === 0) {
+                    console.warn("No animation frames found. Staying in static mode.");
+                     // Optionally switch back to static mode visually
+                     isRadarAnimated = false;
+                     if (switchButtonElement) {
+                         switchButtonElement.classList.remove("active");
+                         switchButtonElement.textContent = "Estático";
+                     }
+                     ensureRadarOverlay(mapInstance, `${STATIC_RADAR_URL}?t=${new Date().getTime()}`);
+                     isFetchingFrames = false;
+                     return; // Exit if no frames
+                }
+
+                // Ensure overlay exists and set the first frame
+                ensureRadarOverlay(mapInstance, radarFrameUrls[0]);
+                currentFrameIndex = 0;
+
+                // Start the animation loop
+                animationIntervalId = window.setInterval(() => {
+                     if (!currentRadarOverlay || radarFrameUrls.length === 0) {
+                         stopRadarAnimation();
+                         return;
+                     }
+                    // Increment frame index, looping back to 0
+                     currentFrameIndex = (currentFrameIndex + 1) % radarFrameUrls.length;
+                     // Update the overlay URL to the next frame
+                     currentRadarOverlay.setUrl(radarFrameUrls[currentFrameIndex]);
+
+                 }, ANIMATION_FRAME_INTERVAL_MS);
+
+                 console.log("Radar animation started.");
+
+             } catch (error) {
+                 console.error("Failed to start radar animation:", error);
+                 // Attempt to show static image as fallback
+                 ensureRadarOverlay(mapInstance, `${STATIC_RADAR_URL}?t=${new Date().getTime()}`);
+                 // Optionally revert button state
+                 isRadarAnimated = false;
+                  if (switchButtonElement) {
+                     switchButtonElement.classList.remove("active");
+                     switchButtonElement.textContent = "Estático";
+                 }
+             } finally {
+                 isFetchingFrames = false; // Allow fetching again
+             }
         }
+
 
         /**
          * Toggles the radar overlay between static and animated modes.
-         * Updates the button text and style.
          * @param {L.Map} mapInstance - The Leaflet map instance.
          */
         function toggleRadarOverlay(mapInstance: L.Map): void {
-            isRadarAnimated = !isRadarAnimated;
-            updateRadarOverlay(mapInstance); // Refresh the overlay with the new state
+            isRadarAnimated = !isRadarAnimated; // Toggle the state
 
             // Update the switch button appearance and text
             if (switchButtonElement) {
                 switchButtonElement.classList.toggle("active", isRadarAnimated);
-                switchButtonElement.textContent = isRadarAnimated
-                    ? "Animación"
-                    : "Estático";
+                switchButtonElement.textContent = isRadarAnimated ? "Animación" : "Estático";
+            }
+
+            if (isRadarAnimated) {
+                // Switched TO animated
+                startRadarAnimation(mapInstance);
+            } else {
+                // Switched TO static
+                stopRadarAnimation();
+                // Update overlay to show the latest static image
+                ensureRadarOverlay(mapInstance, `${STATIC_RADAR_URL}?t=${new Date().getTime()}`);
             }
         }
 
-
-        /**
-         * Sets up event listeners for user interactions and window events.
-         * @param {L.Map} mapInstance - The Leaflet map instance.
-         */
-        function setupEventListeners(mapInstance: L.Map): void {
-            // Listener for the radar overlay switch button
-            if (switchButtonElement) {
+        function setupEventListeners(mapInstance: L.Map): void { /* ... (same as before, calls toggleRadarOverlay) ... */
+             if (switchButtonElement) {
                 switchButtonElement.addEventListener("click", () => {
-                    toggleRadarOverlay(mapInstance);
+                    toggleRadarOverlay(mapInstance); // The core logic is now here
                 });
             } else {
                 console.warn("Switch button element not found. Toggle functionality disabled.");
             }
-
-            // Listener for window resize to ensure map displays correctly
-            window.addEventListener("resize", () => {
-                mapInstance.invalidateSize(); // Recalculate map size
-            });
+            window.addEventListener("resize", () => { mapInstance.invalidateSize(); });
         }
 
-         /**
-         * Attempts to get the user's current location using the Geolocation API.
-         * If successful, centers the map on the user's location, adds a marker,
-         * and fetches the temperature for that location.
-         * If unsuccessful or not supported, fetches temperature for the default location.
-         * @param {L.Map} mapInstance - The Leaflet map instance.
-         */
-        function handleGeolocation(mapInstance: L.Map): void {
+        function handleGeolocation(mapInstance: L.Map): void { /* ... (same as before) ... */
              if (navigator.geolocation) {
                  navigator.geolocation.getCurrentPosition(
                      (position) => {
-                         // Geolocation successful
-                         const { latitude, longitude } = position.coords;
-                         const userCoords: L.LatLngTuple = [latitude, longitude];
-
-                         // Center map and set appropriate zoom
+                         const { latitude, longitude } = position.coords; const userCoords: L.LatLngTuple = [latitude, longitude];
                          mapInstance.setView(userCoords, USER_LOCATION_ZOOM);
-
-                         // Add a marker at the user's location
-                         const userIcon = L.icon({
-                             iconUrl: USER_ICON_URL,
-                             iconSize: [38, 38], // pixels
-                             iconAnchor: [19, 38], // point of the icon which will correspond to marker's location
-                             popupAnchor: [0, -38], // point from which the popup should open relative to the iconAnchor
-                         });
-                         L.marker(userCoords, { icon: userIcon })
-                             .addTo(mapInstance)
-                            //  .bindPopup("<b>Your Location</b>") // Optional popup
-                            //  .openPopup();
-
-                         // Fetch temperature for user's location
+                         const userIcon = L.icon({ iconUrl: USER_ICON_URL, iconSize: [38, 38], iconAnchor: [19, 38], popupAnchor: [0, -38] });
+                         L.marker(userCoords, { icon: userIcon }).addTo(mapInstance);
                          fetchTemperature(latitude, longitude);
                      },
                      (error) => {
-                         // Geolocation failed or denied
-                         console.error("Error getting location:", error.message);
-                         // Optionally provide user feedback (e.g., using a toast notification)
-                         // alert(`Could not retrieve your location: ${error.message}`);
-                         console.warn("Could not retrieve location. Using default location for temperature.");
-                         // Fetch temperature for the default map center (Medellin)
+                         console.error("Error getting location:", error.message); console.warn("Using default location for temperature.");
                          fetchTemperature(MEDELLIN_COORDS[0], MEDELLIN_COORDS[1]);
                      },
-                     {
-                        // Geolocation options
-                        enableHighAccuracy: false, // Lower power consumption
-                        timeout: 10000, // 10 seconds max to get location
-                        maximumAge: 60000 // Allow cached location up to 1 minute old
-                     }
+                     { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
                  );
              } else {
-                 // Geolocation not supported by the browser
-                 console.warn("Geolocation is not supported by this browser.");
-                 // alert("Geolocation is not supported by your browser.");
-                 // Fetch temperature for the default map center (Medellin)
+                 console.warn("Geolocation is not supported.");
                   fetchTemperature(MEDELLIN_COORDS[0], MEDELLIN_COORDS[1]);
              }
-         }
+        }
 
         /**
-         * Starts the periodic refresh of the radar overlay.
+         * Starts the periodic refresh of the radar data.
+         * If animated, fetches new frames. If static, refreshes the static image URL.
          * @param {L.Map} mapInstance - The Leaflet map instance.
          */
         function startRadarRefresh(mapInstance: L.Map): void {
-            // Clear any existing interval first
             if (radarUpdateInterval !== null) {
                 clearInterval(radarUpdateInterval);
             }
-             // Start the interval and store its ID
-             radarUpdateInterval = window.setInterval(() => {
-                 console.log("Refreshing radar overlay...");
-                 updateRadarOverlay(mapInstance);
+            radarUpdateInterval = window.setInterval(() => {
+                 console.log("Periodic radar refresh triggered.");
+                 if (isRadarAnimated) {
+                     // If animating, fetch new frames and restart animation
+                     console.log("Refreshing animation frames...");
+                     startRadarAnimation(mapInstance); // This will stop old animation and fetch new data
+                 } else if (currentRadarOverlay){
+                     // If static, just update the static image URL (cache buster)
+                     console.log("Refreshing static radar image...");
+                     const staticUrl = `${STATIC_RADAR_URL}?t=${new Date().getTime()}`;
+                     currentRadarOverlay.setUrl(staticUrl);
+                 } else {
+                    // If overlay doesn't exist yet, create it with static image
+                    ensureRadarOverlay(mapInstance, `${STATIC_RADAR_URL}?t=${new Date().getTime()}`);
+                 }
              }, RADAR_REFRESH_INTERVAL_MS);
          }
 
-
         // --- Main Execution ---
-
         try {
-            // 1. Initialize the map
             map = initializeMap();
-
-            // 2. Get base layers
             const baseLayers = getBaseLayers();
-
-            // 3. Setup theme switching based on HTML class
             setupThemeSwitcher(map, baseLayers);
 
-            // 4. Add the initial radar overlay
-            updateRadarOverlay(map);
+            // Ensure the overlay layer exists initially with the static image
+            ensureRadarOverlay(map, `${STATIC_RADAR_URL}?t=${new Date().getTime()}`);
 
-            // 5. Set up event listeners (button clicks, resize)
             setupEventListeners(map);
-
-            // 6. Handle geolocation and initial temperature fetch
             handleGeolocation(map);
-
-            // 7. Start periodic radar refresh
-            startRadarRefresh(map);
+            startRadarRefresh(map); // Start periodic refresh
 
         } catch (error) {
             console.error("Failed to initialize map component:", error);
-            if (mapElement) {
-                mapElement.innerHTML = '<p style="padding: 20px; text-align: center; color: red;">Error loading map.</p>';
-            }
-             updateTemperatureUI(null, null, false, true); // Show error in temp display
+            if (mapElement) { mapElement.innerHTML = '<p style="padding: 20px; text-align: center; color: red;">Error loading map.</p>'; }
+            updateTemperatureUI(null, null, false, true);
         }
 
     }); // End of DOMContentLoaded listener
