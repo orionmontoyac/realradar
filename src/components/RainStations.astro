@@ -1,173 +1,108 @@
 ---
+import type { HTMLAttributes } from "astro/types";
+import RainStationsCard from './RainStationsCard.astro';
+
 interface StationAttribute {
-  id_atributo: string;
-  nombre: string;
-  descripcion: string;
-  categoria: string;
-  valor_numerico: number | null;
-  valor_alfanumerico: string;
-  valor_fecha: string | null;
-  variable: string | null;
-  resolucion: string | null;
-  titulo: string;
+    id_atributo: string;
+    nombre: string;
+    descripcion: string;
+    categoria: string;
+    valor_numerico: number | null;
+    valor_alfanumerico: string;
+    valor_fecha: string | null;
+    variable: string | null;
+    resolucion: string | null;
+    titulo: string;
 }
 
 interface Station {
-  id_feature_vector: string;
-  geometry_text: string;
-  atributos: {
-    descripcion: {
-      [key: string]: StationAttribute;
+    id_feature_vector: string;
+    geometry_text: string;
+    atributos: {
+        descripcion: {
+            [key: string]: StationAttribute;
+        };
+        grafico: {
+            [key: string]: StationAttribute;
+        };
+        metadato: {
+            [key: string]: StationAttribute;
+        };
     };
-    grafico: {
-      [key: string]: StationAttribute;
-    };
-    metadato: {
-      [key: string]: StationAttribute;
-    };
-  };
 }
 
 interface ApiResponse {
-  feature_vector: Station[];
+    feature_vector: Station[];
 }
 
-const API_URL = 'https://siata.gov.co/siata_nuevo/index.php/capa_service/consultar_capa_carga';
-const LAYER_ID = 'C_00000000000000000000210';
+const API_URL =
+    "https://siata.gov.co/siata_nuevo/index.php/capa_service/consultar_capa_carga";
+const LAYER_ID = "C_00000000000000000000210";
 
 const response = await fetch(API_URL, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-    'Accept': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest',
-  },
-  body: `id_capa=${LAYER_ID}`,
+    method: "POST",
+    headers: {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+    },
+    body: `id_capa=${LAYER_ID}`,
 });
 
 const data: ApiResponse = await response.json();
-const stations = data.feature_vector
+const stations = data.feature_vector.sort((a, b) => {
+    const rainA5m = parseFloat(
+        a.atributos.descripcion.D_5_m?.valor_alfanumerico || "0",
+    );
+    const rainB5m = parseFloat(
+        b.atributos.descripcion.D_5_m?.valor_alfanumerico || "0",
+    );
+    
+    // If the 5m values are different, sort by them
+    if (rainA5m !== rainB5m) {
+        return rainB5m - rainA5m;
+    }
+    
+    // If 5m values are equal, sort by 30D values
+    const rainA30D = parseFloat(
+        a.atributos.descripcion.D_30_D?.valor_alfanumerico || "0",
+    );
+    const rainB30D = parseFloat(
+        b.atributos.descripcion.D_30_D?.valor_alfanumerico || "0",
+    );
+    return rainB30D - rainA30D;
+});
+//   .slice(0, 20);
 ---
 
 <div class="rain-stations">
-  <h2>Estaciones Pluviométricas</h2>
-  <p class="description">Mediciones de precipitación en tiempo real</p>
-  <div class="stations-grid">
-    {stations.map((station) => {
-      const stationName = station.atributos.descripcion[Object.keys(station.atributos.descripcion)[0]]?.valor_alfanumerico || 'Estación desconocida';
-      const stationCode = station.atributos.descripcion[Object.keys(station.atributos.descripcion)[1]]?.valor_alfanumerico || 'Código no disponible';
-      const stationLocation = station.atributos.metadato[Object.keys(station.atributos.metadato)[0]]?.valor_alfanumerico || 'Ubicación no disponible';
-      const last5MinutesRain = station.atributos.descripcion.D_5_m?.valor_alfanumerico || '0.0 mm';
-      const lastHourRain = station.atributos.descripcion.D_1_H?.valor_alfanumerico || '0.0 mm';
-      const last24HoursRain = station.atributos.descripcion.D_24_H?.valor_alfanumerico || '0.0 mm';
-      const last30DaysRain = station.atributos.descripcion.D_30_D?.valor_alfanumerico || '0.0 mm';
-      
-      return (
-        <div class="station-card">
-          <div class="station-header">
-            <h3>{stationLocation}</h3>
-          </div>
-          <div class="rain-data">
-            <div class="rain-info">
-              <h4>Precipitación</h4>
-              <div class="measurement-details">
-                <div class="measurement-row">
-                  <span class="measurement-label">Últimos 5 minutos:</span>
-                  <span class="rain-value">{last5MinutesRain}</span>
-                </div>
-                <div class="measurement-row">
-                  <span class="measurement-label">Última hora:</span>
-                  <span class="rain-value">{lastHourRain}</span>
-                </div>
-                <div class="measurement-row">
-                  <span class="measurement-label">Últimas 24 horas:</span>
-                  <span class="rain-value">{last24HoursRain}</span>
-                </div>
-                <div class="measurement-row">
-                  <span class="measurement-label">Últimos 30 días:</span>
-                  <span class="rain-value">{last30DaysRain}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    })}
-  </div>
+    <h2>Estaciones Pluviométricas</h2>
+    <p class="description">Mediciones de precipitación en tiempo real</p>
+    <div class="stations-grid">
+        {stations.map((station) => (
+            <RainStationsCard station={station} />
+        ))}
+    </div>
 </div>
 
 <style>
-  .rain-stations {
-    padding: 1rem;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
+    .rain-stations {
+        padding: 1rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
 
-  .description {
-    text-align: center;
-    color: #666;
-    margin-bottom: 2rem;
-    font-size: 1.1rem;
-  }
+    .description {
+        text-align: center;
+        color: #666;
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+    }
 
-  .stations-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
-  }
-
-  .station-card {
-    background: white;
-    border-radius: 8px;
-    padding: 1rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .station-header {
-    margin-bottom: 1rem;
-  }
-
-  .station-card h3 {
-    margin: 0 0 0.5rem 0;
-    color: #333;
-    font-size: 1.2rem;
-  }
-
-  .rain-data {
-    margin-top: 1rem;
-  }
-
-  .rain-info {
-    margin-bottom: 0.5rem;
-  }
-
-  .rain-info h4 {
-    margin: 0 0 0.5rem 0;
-    color: #2c5282;
-    font-size: 1.1rem;
-  }
-
-  .measurement-details {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .measurement-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.25rem 0;
-  }
-
-  .measurement-label {
-    color: #666;
-    font-size: 0.9rem;
-  }
-
-  .rain-value {
-    font-weight: bold;
-    color: #2c5282;
-    font-size: 0.95rem;
-  }
+    .stations-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
 </style>

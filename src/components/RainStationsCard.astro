@@ -1,0 +1,181 @@
+---
+interface StationAttribute {
+  id_atributo: string;
+  nombre: string;
+  descripcion: string;
+  categoria: string;
+  valor_numerico: number | null;
+  valor_alfanumerico: string;
+  valor_fecha: string | null;
+  variable: string | null;
+  resolucion: string | null;
+  titulo: string;
+}
+
+interface Station {
+  id_feature_vector: string;
+  geometry_text: string;
+  atributos: {
+    descripcion: {
+      [key: string]: StationAttribute;
+    };
+    grafico: {
+      [key: string]: StationAttribute;
+    };
+    metadato: {
+      [key: string]: StationAttribute;
+    };
+  };
+}
+
+interface Props {
+  station: Station;
+}
+
+const { station } = Astro.props;
+const stationName =
+  station.atributos.descripcion[Object.keys(station.atributos.descripcion)[0]]
+    ?.valor_alfanumerico || "Estación desconocida";
+
+const stationCode =
+  station.atributos.descripcion[Object.keys(station.atributos.descripcion)[1]]
+    ?.valor_alfanumerico || "Código no disponible";
+  
+const stationLatitud =  station.atributos.descripcion.Latitud?.valor_alfanumerico || "";
+const stationLongitud =  station.atributos.descripcion.Longitud?.valor_alfanumerico || "";
+
+const stationLocation =
+  station.atributos.metadato[Object.keys(station.atributos.metadato)[0]]
+    ?.valor_alfanumerico || "Ubicación no disponible";
+
+const stationMunicipality =
+  station.atributos.descripcion.Municipio?.valor_alfanumerico || "";
+
+const stationCuenca =
+  station.atributos.descripcion.Subcuenca?.valor_alfanumerico || "";
+
+const last5MinutesRain =
+  station.atributos.descripcion.D_5_m?.valor_alfanumerico || "0.0 mm";
+
+const lastHourRain =
+  station.atributos.descripcion.D_1_H?.valor_alfanumerico || "0.0 mm";
+
+const last24HoursRain =
+  station.atributos.descripcion.D_24_H?.valor_alfanumerico || "0.0 mm";
+
+const last30DaysRain =
+  station.atributos.descripcion.D_30_D?.valor_alfanumerico || "0.0 mm";
+
+// console.log(stationLatitud, stationLongitud);
+---
+
+<div id={stationName} class="station-card">
+  <div class="station-header">
+    <h3>{stationLocation}</h3>
+    <h3>{stationMunicipality} - {stationCuenca}</h3>
+  </div>
+  <div class="rain-data">
+    <div class="rain-info">
+      <h4>Precipitación</h4>
+      <div class="measurement-details">
+        <div class="measurement-row">
+          <span class="measurement-label">Últimos 5 minutos:</span>
+          <span class="rain-value">{last5MinutesRain}</span>
+        </div>
+        <div class="measurement-row">
+          <span class="measurement-label">Última hora:</span>
+          <span class="rain-value">{lastHourRain}</span>
+        </div>
+        <div class="measurement-row">
+          <span class="measurement-label">Últimas 24 horas:</span>
+          <span class="rain-value">{last24HoursRain}</span>
+        </div>
+        <div class="measurement-row">
+          <span class="measurement-label">Últimos 30 días:</span>
+          <span class="rain-value">{last30DaysRain}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="maps-link">
+    <a href={`https://www.google.com/maps?ll=${stationLatitud},${stationLongitud}&z=15&q=${stationLatitud},${stationLongitud}(${stationName})`} target="_blank" rel="noopener noreferrer">
+      Ver Estación en Google Maps
+    </a>
+  </div>
+</div>
+
+<style>
+  .station-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .station-header {
+    margin-bottom: 1rem;
+  }
+
+  .station-card h3 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+    font-size: 1.2rem;
+  }
+
+  .rain-data {
+    margin-top: 1rem;
+  }
+
+  .rain-info {
+    margin-bottom: 0.5rem;
+  }
+
+  .rain-info h4 {
+    margin: 0 0 0.5rem 0;
+    color: #2c5282;
+    font-size: 1.1rem;
+  }
+
+  .measurement-details {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .measurement-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+  }
+
+  .measurement-label {
+    color: #666;
+    font-size: 0.9rem;
+  }
+
+  .rain-value {
+    font-weight: bold;
+    color: #2c5282;
+    font-size: 0.95rem;
+  }
+
+  .maps-link {
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .maps-link a {
+    color: #2c5282;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.2rem 1rem;
+    border: 1px solid #2c5282;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+
+  .maps-link a:hover {
+    background-color: #2c5282;
+    color: white;
+  }
+</style>
