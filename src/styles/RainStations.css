@@ -1,0 +1,48 @@
+.rain-stations {
+    padding: 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.description {
+    text-align: center;
+    color: #666;
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+.stations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.card {
+    border: 1px solid #ddd;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+}
+
+.title {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.data-item {
+    margin-bottom: 0.3rem;
+}
+
+.loading {
+    text-align: center;
+    font-style: italic;
+    color: #888;
+}
+
+.error {
+    text-align: center;
+    color: #ff0000;
+    font-weight: bold;
+} 
