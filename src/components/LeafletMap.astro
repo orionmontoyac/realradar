@@ -6,7 +6,6 @@
 // at the user's location or the map center.
 
 import Icon from "./Icon.astro";
-
 ---
 
 <div id="map" class="map-container"></div>
@@ -14,10 +13,49 @@ import Icon from "./Icon.astro";
 <button id="switchButton" class="switch-button">Est&aacute;tico</button>
 
 <div id="temperatureDisplay" class="temperature-display">
-    <Icon icon="weather" size="2.0em" /> <span class="temp-value">--°C</span>
+    <Icon icon="weather" size="2.0em" />
+    <span class="temp-value">--°C</span>
     <span class="location-name">Loading...</span>
+    <button
+        id="shareButton"
+        class="share-button"
+        type="button"
+        title="Compartir esta página"
+    >
+        <Icon icon="share" size="2.0em" />
+        <span class="share-value">Compartir</span>
+    </button>
 </div>
 
+<script type="module">
+    const shareButton = document.getElementById("shareButton");
+    if (shareButton) {
+        shareButton.addEventListener("click", async () => {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: document.title,
+                        text: "Mira este radar meteorológico en tiempo real",
+                        url: window.location.href,
+                    });
+                } catch (err) {
+                    // User cancelled or error occurred
+                }
+            } else {
+                // Fallback: copy link to clipboard and alert user
+                try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    alert("Enlace copiado al portapapeles");
+                } catch (e) {
+                    alert(
+                        "No se pudo compartir. Copia el enlace manualmente: " +
+                            window.location.href,
+                    );
+                }
+            }
+        });
+    }
+</script>
 <style>
     /* Basic reset for full-screen map */
     html,
@@ -44,42 +82,8 @@ import Icon from "./Icon.astro";
     /* Improve image rendering for overlay */
     .leaflet-image-layer {
         image-rendering: auto; /* Or pixelated if preferred for radar */
-         /* Add transition for smoother image changes, adjust timing as needed */
+        /* Add transition for smoother image changes, adjust timing as needed */
         transition: opacity 0.2s ease-in-out;
-    }
-
-    /* Styling for the overlay switch button */
-    .switch-button {
-        width: 150px;
-        height: 40px;
-        z-index: 1000; /* Ensure button is above map */
-        border-radius: 20px;
-        background-color: var(--gray-999);
-        border: none;
-        cursor: pointer;
-        position: fixed;
-        bottom: 40px;
-        right: 60px;
-        outline: none;
-        transition: background-color 0.3s, color 0.3s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 10px;
-        font-family: Arial, sans-serif;
-        font-size: var(--text-sm);
-        font-weight: bolder;
-        color: var(--gray-50);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        box-shadow: var(--shadow-md);
-    }
-
-    /* Active state style for the switch button */
-    .switch-button.active {
-        background-color: var(--accent-regular);
-        color: white;
     }
 
     /* Temperature display styling */
@@ -116,7 +120,55 @@ import Icon from "./Icon.astro";
     /* Location name text style */
     .location-name {
         font-size: 0.875rem;
-        color: var(--location-text-color, var(--gray-500)); /* Default light theme color */
+        color: var(
+            --location-text-color,
+            var(--gray-500)
+        ); /* Default light theme color */
+    }
+
+    .share-button {
+        z-index: 1000;
+        box-shadow: var(--shadow-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 10px;
+        font-family: Arial, sans-serif;
+        font-size: var(--text-sm);
+    }
+
+    /* Styling for the overlay switch button */
+    .switch-button {
+        width: 150px;
+        height: 40px;
+        z-index: 1000; /* Ensure button is above map */
+        border-radius: 20px;
+        background-color: var(--gray-999);
+        border: none;
+        cursor: pointer;
+        position: fixed;
+        bottom: 40px;
+        right: 90px; /* Align with temperature display */
+        outline: none;
+        transition: background-color 0.3s, color 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 10px;
+        font-family: Arial, sans-serif;
+        font-size: var(--text-sm);
+        font-weight: bolder;
+        color: var(--gray-50);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        box-shadow: var(--shadow-md);
+    }
+
+    /* Active state style for the switch button */
+    .switch-button.active {
+        background-color: var(--accent-regular);
+        color: white;
     }
 </style>
 
@@ -136,25 +188,33 @@ import Icon from "./Icon.astro";
         const STATIC_RADAR_URL =
             "https://siata.gov.co/kml/00_Radar/Ultimo_Barrido/AreaMetRadar_10_120_DBZH.png";
         // SIATA API and Image Base Configuration
-        const SIATA_API_ENDPOINT = 'https://siata.gov.co/newpage/widget-animacion_radar-getRadarImages1.php';
-        const SIATA_IMAGE_BASE_URL = 'https://siata.gov.co/';
+        const SIATA_API_ENDPOINT =
+            "https://siata.gov.co/newpage/widget-animacion_radar-getRadarImages1.php";
+        const SIATA_IMAGE_BASE_URL = "https://siata.gov.co/";
         const RADAR_ELEVATION = 10; // Radar elevation angle
         const RADAR_INTERVAL = 1; // Interval parameter for API
         const ANIMATION_FRAME_INTERVAL_MS = 500; // Time between animation frames (0.5 seconds)
 
         const RADAR_IMAGE_BOUNDS = L.latLngBounds(
             L.latLng(5.1004, -76.5946), // Southwest corner
-            L.latLng(7.3004, -74.2946)  // Northeast corner
+            L.latLng(7.3004, -74.2946), // Northeast corner
         );
         const USER_ICON_URL = "/assets/pin.svg";
-        const ERROR_OVERLAY_URL = '/assets/radar-error.png'; // Optional error image
+        const ERROR_OVERLAY_URL = "/assets/radar-error.png"; // Optional error image
 
         // --- DOM Element References ---
         const mapElement = document.getElementById("map");
         const switchButtonElement = document.getElementById("switchButton");
-        const temperatureDisplayElement = document.getElementById("temperatureDisplay");
-        const tempValueElement = temperatureDisplayElement?.querySelector<HTMLElement>(".temp-value");
-        const locationNameElement = temperatureDisplayElement?.querySelector<HTMLElement>(".location-name");
+        const temperatureDisplayElement =
+            document.getElementById("temperatureDisplay");
+        const tempValueElement =
+            temperatureDisplayElement?.querySelector<HTMLElement>(
+                ".temp-value",
+            );
+        const locationNameElement =
+            temperatureDisplayElement?.querySelector<HTMLElement>(
+                ".location-name",
+            );
 
         // --- State Variables ---
         let map: L.Map | null = null;
@@ -176,7 +236,7 @@ import Icon from "./Icon.astro";
         // Type for the SIATA API response
         interface SiataRadarImagesResponse {
             nameImages: string[]; // e.g., "../data/radar/10/20250502/202505021959.png"
-            nameDates: number[];  // Timestamps (likely milliseconds)
+            nameDates: number[]; // Timestamps (likely milliseconds)
         }
 
         // --- Initialization Check ---
@@ -184,7 +244,11 @@ import Icon from "./Icon.astro";
             console.log("Map container not found or already initialized.");
             return;
         }
-        if (!temperatureDisplayElement || !tempValueElement || !locationNameElement) {
+        if (
+            !temperatureDisplayElement ||
+            !tempValueElement ||
+            !locationNameElement
+        ) {
             console.error("Temperature display elements not found.");
             return;
         }
@@ -202,14 +266,14 @@ import Icon from "./Icon.astro";
                 minZoom: MIN_ZOOM,
                 maxZoom: MAX_ZOOM,
             });
-            L.control.zoom({ position: "topright" }).addTo(mapInstance);
             return mapInstance;
         }
 
-        function getBaseLayers(): Record<string, L.TileLayer> { /* ... (same as before) ... */
+        function getBaseLayers(): Record<string, L.TileLayer> {
+            /* ... (same as before) ... */
             const stadiaAttribution =
                 '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors';
-             return {
+            return {
                 "Alidade Smooth": L.tileLayer(
                     "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png",
                     { attribution: stadiaAttribution, maxZoom: MAX_ZOOM },
@@ -221,54 +285,102 @@ import Icon from "./Icon.astro";
             };
         }
 
-        function switchBaseMapLayer(theme: "light" | "dark", mapInstance: L.Map, baseLayers: Record<string, L.TileLayer>): void { /* ... (same as before) ... */
+        function switchBaseMapLayer(
+            theme: "light" | "dark",
+            mapInstance: L.Map,
+            baseLayers: Record<string, L.TileLayer>,
+        ): void {
+            /* ... (same as before) ... */
             if (currentBaseLayer) {
                 mapInstance.removeLayer(currentBaseLayer);
             }
-            const newLayer = theme === "dark" ? baseLayers["Dark Matter"] : baseLayers["Alidade Smooth"];
+            const newLayer =
+                theme === "dark"
+                    ? baseLayers["Dark Matter"]
+                    : baseLayers["Alidade Smooth"];
             if (newLayer) {
                 currentBaseLayer = newLayer;
                 currentBaseLayer.addTo(mapInstance);
             } else {
-                console.error("Could not find appropriate base layer for theme:", theme);
+                console.error(
+                    "Could not find appropriate base layer for theme:",
+                    theme,
+                );
             }
         }
 
-        function setupThemeSwitcher(mapInstance: L.Map, baseLayers: Record<string, L.TileLayer>): void { /* ... (same as before) ... */
-             const observer = new MutationObserver(() => {
-                const currentTheme = document.documentElement.classList.contains("theme-dark") ? "dark" : "light";
+        function setupThemeSwitcher(
+            mapInstance: L.Map,
+            baseLayers: Record<string, L.TileLayer>,
+        ): void {
+            /* ... (same as before) ... */
+            const observer = new MutationObserver(() => {
+                const currentTheme =
+                    document.documentElement.classList.contains("theme-dark")
+                        ? "dark"
+                        : "light";
                 switchBaseMapLayer(currentTheme, mapInstance, baseLayers);
             });
-            observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-            const initialTheme = document.documentElement.classList.contains("theme-dark") ? "dark" : "light";
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ["class"],
+            });
+            const initialTheme = document.documentElement.classList.contains(
+                "theme-dark",
+            )
+                ? "dark"
+                : "light";
             switchBaseMapLayer(initialTheme, mapInstance, baseLayers);
         }
 
-        function updateTemperatureUI(temp: string | number | null, location: string | null, isLoading: boolean = false, isError: boolean = false): void { /* ... (same as before) ... */
+        function updateTemperatureUI(
+            temp: string | number | null,
+            location: string | null,
+            isLoading: boolean = false,
+            isError: boolean = false,
+        ): void {
+            /* ... (same as before) ... */
             if (!tempValueElement || !locationNameElement) return;
             if (isLoading) {
-                tempValueElement.textContent = "--°C"; locationNameElement.textContent = "Loading...";
+                tempValueElement.textContent = "--°C";
+                locationNameElement.textContent = "Loading...";
             } else if (isError) {
-                tempValueElement.textContent = "N/A"; locationNameElement.textContent = "Error loading data";
+                tempValueElement.textContent = "N/A";
+                locationNameElement.textContent = "Error loading data";
             } else if (temp !== null && location !== null) {
-                tempValueElement.textContent = `${Math.round(Number(temp))}°C`; locationNameElement.textContent = location;
+                tempValueElement.textContent = `${Math.round(Number(temp))}°C`;
+                locationNameElement.textContent = location;
             } else {
-                tempValueElement.textContent = "N/A"; locationNameElement.textContent = "Unavailable";
+                tempValueElement.textContent = "N/A";
+                locationNameElement.textContent = "Unavailable";
             }
         }
 
-        async function fetchTemperature(lat: number, lon: number): Promise<void> { /* ... (same as before) ... */
+        async function fetchTemperature(
+            lat: number,
+            lon: number,
+        ): Promise<void> {
+            /* ... (same as before) ... */
             if (!WEATHER_API_KEY) {
-                console.error("Weather API key is missing."); updateTemperatureUI(null, null, false, true); return;
+                console.error("Weather API key is missing.");
+                updateTemperatureUI(null, null, false, true);
+                return;
             }
             updateTemperatureUI(null, null, true);
             try {
-                const response = await fetch(`https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${lat},${lon}&aqi=no`);
-                if (!response.ok) { throw new Error(`Weather data fetch failed: ${response.status} ${response.statusText}`); }
+                const response = await fetch(
+                    `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${lat},${lon}&aqi=no`,
+                );
+                if (!response.ok) {
+                    throw new Error(
+                        `Weather data fetch failed: ${response.status} ${response.statusText}`,
+                    );
+                }
                 const data: WeatherApiResponse = await response.json();
                 updateTemperatureUI(data.current.temp_c, data.location.name);
             } catch (error) {
-                console.error("Error fetching temperature:", error); updateTemperatureUI(null, null, false, true);
+                console.error("Error fetching temperature:", error);
+                updateTemperatureUI(null, null, false, true);
             }
         }
 
@@ -283,45 +395,59 @@ import Icon from "./Icon.astro";
                 elevation: RADAR_ELEVATION.toString(),
                 date: currentTimestampSeconds.toString(),
                 interval: RADAR_INTERVAL.toString(),
-                nowcasting: 'undefined'
+                nowcasting: "undefined",
             });
 
-            console.log('Fetching radar image list with params:', queryParams.toString());
+            console.log(
+                "Fetching radar image list with params:",
+                queryParams.toString(),
+            );
 
             try {
-                const response = await fetch(`${SIATA_API_ENDPOINT}?${queryParams.toString()}`, {
-                    headers: {
-                        'Referer': 'https://siata.gov.co/newpage/',
-                        'Origin': 'https://siata.gov.co'
-                    }
-                });
+                const response = await fetch(
+                    `${SIATA_API_ENDPOINT}?${queryParams.toString()}`,
+                    {
+                        headers: {
+                            Referer: "https://siata.gov.co/newpage/",
+                            Origin: "https://siata.gov.co",
+                        },
+                    },
+                );
 
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch radar images list: ${response.status} ${response.statusText}`);
-                }
-                else{
-                    console.info(`Response: ${response.status}`)
+                    throw new Error(
+                        `Failed to fetch radar images list: ${response.status} ${response.statusText}`,
+                    );
+                } else {
+                    console.info(`Response: ${response.status}`);
                 }
 
                 const data: SiataRadarImagesResponse = await response.json();
-                console.log(data)
-                if (!data || !Array.isArray(data.nameImages) || data.nameImages.length === 0) {
-                     throw new Error("Invalid or empty image list received from API.");
+                console.log(data);
+                if (
+                    !data ||
+                    !Array.isArray(data.nameImages) ||
+                    data.nameImages.length === 0
+                ) {
+                    throw new Error(
+                        "Invalid or empty image list received from API.",
+                    );
                 }
 
                 // Process paths: remove "../" and prepend base URL
-                const fullUrls = data.nameImages.map(relativePath => {
+                const fullUrls = data.nameImages.map((relativePath) => {
                     // Remove leading "../" if present
-                    const cleanPath = relativePath.startsWith('../') ? relativePath.substring(3) : relativePath;
+                    const cleanPath = relativePath.startsWith("../")
+                        ? relativePath.substring(3)
+                        : relativePath;
                     return `${SIATA_IMAGE_BASE_URL}${cleanPath}`;
                 });
 
                 console.log(`Workspaceed ${fullUrls.length} radar image URLs.`);
                 return fullUrls;
-
             } catch (error) {
                 console.error("Error fetching radar image URLs:", error);
-                 // Re-throw the error to be caught by the caller
+                // Re-throw the error to be caught by the caller
                 throw error;
             }
         }
@@ -332,17 +458,24 @@ import Icon from "./Icon.astro";
          * @param {L.Map} mapInstance - The Leaflet map instance.
          * @param {string} initialImageUrl - The URL for the first image to display.
          */
-        function ensureRadarOverlay(mapInstance: L.Map, initialImageUrl: string): void {
+        function ensureRadarOverlay(
+            mapInstance: L.Map,
+            initialImageUrl: string,
+        ): void {
             if (!currentRadarOverlay) {
-                 console.log("Creating radar overlay layer.");
-                 currentRadarOverlay = L.imageOverlay(initialImageUrl, RADAR_IMAGE_BOUNDS, {
-                     opacity: 0.6,
-                     interactive: false,
-                     errorOverlayUrl: ERROR_OVERLAY_URL // Placeholder if image fails
-                 }).addTo(mapInstance);
+                console.log("Creating radar overlay layer.");
+                currentRadarOverlay = L.imageOverlay(
+                    initialImageUrl,
+                    RADAR_IMAGE_BOUNDS,
+                    {
+                        opacity: 0.6,
+                        interactive: false,
+                        errorOverlayUrl: ERROR_OVERLAY_URL, // Placeholder if image fails
+                    },
+                ).addTo(mapInstance);
             } else {
                 // If overlay exists, just update its URL
-                 console.log("Updating existing radar overlay URL.");
+                console.log("Updating existing radar overlay URL.");
                 currentRadarOverlay.setUrl(initialImageUrl);
             }
             // Ensure opacity is set correctly (might reset on setUrl)
@@ -364,28 +497,33 @@ import Icon from "./Icon.astro";
          * @param {L.Map} mapInstance - The Leaflet map instance.
          */
         async function startRadarAnimation(mapInstance: L.Map): Promise<void> {
-             if (isFetchingFrames) {
-                 console.log("Already fetching frames, skipping.");
-                 return;
-             }
-             stopRadarAnimation(); // Stop any previous animation
-             isFetchingFrames = true;
-             console.log("Starting radar animation: fetching frames...");
+            if (isFetchingFrames) {
+                console.log("Already fetching frames, skipping.");
+                return;
+            }
+            stopRadarAnimation(); // Stop any previous animation
+            isFetchingFrames = true;
+            console.log("Starting radar animation: fetching frames...");
 
-             try {
+            try {
                 radarFrameUrls = await fetchRadarImageUrls();
 
                 if (radarFrameUrls.length === 0) {
-                    console.warn("No animation frames found. Staying in static mode.");
-                     // Optionally switch back to static mode visually
-                     isRadarAnimated = false;
-                     if (switchButtonElement) {
-                         switchButtonElement.classList.remove("active");
-                         switchButtonElement.textContent = "Estático";
-                     }
-                     ensureRadarOverlay(mapInstance, `${STATIC_RADAR_URL}?t=${new Date().getTime()}`);
-                     isFetchingFrames = false;
-                     return; // Exit if no frames
+                    console.warn(
+                        "No animation frames found. Staying in static mode.",
+                    );
+                    // Optionally switch back to static mode visually
+                    isRadarAnimated = false;
+                    if (switchButtonElement) {
+                        switchButtonElement.classList.remove("active");
+                        switchButtonElement.textContent = "Estático";
+                    }
+                    ensureRadarOverlay(
+                        mapInstance,
+                        `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
+                    );
+                    isFetchingFrames = false;
+                    return; // Exit if no frames
                 }
 
                 // Ensure overlay exists and set the first frame
@@ -394,34 +532,37 @@ import Icon from "./Icon.astro";
 
                 // Start the animation loop
                 animationIntervalId = window.setInterval(() => {
-                     if (!currentRadarOverlay || radarFrameUrls.length === 0) {
-                         stopRadarAnimation();
-                         return;
-                     }
+                    if (!currentRadarOverlay || radarFrameUrls.length === 0) {
+                        stopRadarAnimation();
+                        return;
+                    }
                     // Increment frame index, looping back to 0
-                     currentFrameIndex = (currentFrameIndex + 1) % radarFrameUrls.length;
-                     // Update the overlay URL to the next frame
-                     currentRadarOverlay.setUrl(radarFrameUrls[currentFrameIndex]);
+                    currentFrameIndex =
+                        (currentFrameIndex + 1) % radarFrameUrls.length;
+                    // Update the overlay URL to the next frame
+                    currentRadarOverlay.setUrl(
+                        radarFrameUrls[currentFrameIndex],
+                    );
+                }, ANIMATION_FRAME_INTERVAL_MS);
 
-                 }, ANIMATION_FRAME_INTERVAL_MS);
-
-                 console.log("Radar animation started.");
-
-             } catch (error) {
-                 console.error("Failed to start radar animation:", error);
-                 // Attempt to show static image as fallback
-                 ensureRadarOverlay(mapInstance, `${STATIC_RADAR_URL}?t=${new Date().getTime()}`);
-                 // Optionally revert button state
-                 isRadarAnimated = false;
-                  if (switchButtonElement) {
-                     switchButtonElement.classList.remove("active");
-                     switchButtonElement.textContent = "Estático";
-                 }
-             } finally {
-                 isFetchingFrames = false; // Allow fetching again
-             }
+                console.log("Radar animation started.");
+            } catch (error) {
+                console.error("Failed to start radar animation:", error);
+                // Attempt to show static image as fallback
+                ensureRadarOverlay(
+                    mapInstance,
+                    `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
+                );
+                // Optionally revert button state
+                isRadarAnimated = false;
+                if (switchButtonElement) {
+                    switchButtonElement.classList.remove("active");
+                    switchButtonElement.textContent = "Estático";
+                }
+            } finally {
+                isFetchingFrames = false; // Allow fetching again
+            }
         }
-
 
         /**
          * Toggles the radar overlay between static and animated modes.
@@ -433,7 +574,9 @@ import Icon from "./Icon.astro";
             // Update the switch button appearance and text
             if (switchButtonElement) {
                 switchButtonElement.classList.toggle("active", isRadarAnimated);
-                switchButtonElement.textContent = isRadarAnimated ? "Animación" : "Estático";
+                switchButtonElement.textContent = isRadarAnimated
+                    ? "Animación"
+                    : "Estático";
             }
 
             if (isRadarAnimated) {
@@ -443,41 +586,66 @@ import Icon from "./Icon.astro";
                 // Switched TO static
                 stopRadarAnimation();
                 // Update overlay to show the latest static image
-                ensureRadarOverlay(mapInstance, `${STATIC_RADAR_URL}?t=${new Date().getTime()}`);
+                ensureRadarOverlay(
+                    mapInstance,
+                    `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
+                );
             }
         }
 
-        function setupEventListeners(mapInstance: L.Map): void { /* ... (same as before, calls toggleRadarOverlay) ... */
-             if (switchButtonElement) {
+        function setupEventListeners(mapInstance: L.Map): void {
+            /* ... (same as before, calls toggleRadarOverlay) ... */
+            if (switchButtonElement) {
                 switchButtonElement.addEventListener("click", () => {
                     toggleRadarOverlay(mapInstance); // The core logic is now here
                 });
             } else {
-                console.warn("Switch button element not found. Toggle functionality disabled.");
+                console.warn(
+                    "Switch button element not found. Toggle functionality disabled.",
+                );
             }
-            window.addEventListener("resize", () => { mapInstance.invalidateSize(); });
+            window.addEventListener("resize", () => {
+                mapInstance.invalidateSize();
+            });
         }
 
-        function handleGeolocation(mapInstance: L.Map): void { /* ... (same as before) ... */
-             if (navigator.geolocation) {
-                 navigator.geolocation.getCurrentPosition(
-                     (position) => {
-                         const { latitude, longitude } = position.coords; const userCoords: L.LatLngTuple = [latitude, longitude];
-                         mapInstance.setView(userCoords, USER_LOCATION_ZOOM);
-                         const userIcon = L.icon({ iconUrl: USER_ICON_URL, iconSize: [38, 38], iconAnchor: [19, 38], popupAnchor: [0, -38] });
-                         L.marker(userCoords, { icon: userIcon }).addTo(mapInstance);
-                         fetchTemperature(latitude, longitude);
-                     },
-                     (error) => {
-                         console.error("Error getting location:", error.message); console.warn("Using default location for temperature.");
-                         fetchTemperature(MEDELLIN_COORDS[0], MEDELLIN_COORDS[1]);
-                     },
-                     { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
-                 );
-             } else {
-                 console.warn("Geolocation is not supported.");
-                  fetchTemperature(MEDELLIN_COORDS[0], MEDELLIN_COORDS[1]);
-             }
+        function handleGeolocation(mapInstance: L.Map): void {
+            /* ... (same as before) ... */
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        const userCoords: L.LatLngTuple = [latitude, longitude];
+                        mapInstance.setView(userCoords, USER_LOCATION_ZOOM);
+                        const userIcon = L.icon({
+                            iconUrl: USER_ICON_URL,
+                            iconSize: [38, 38],
+                            iconAnchor: [19, 38],
+                            popupAnchor: [0, -38],
+                        });
+                        L.marker(userCoords, { icon: userIcon }).addTo(
+                            mapInstance,
+                        );
+                        fetchTemperature(latitude, longitude);
+                    },
+                    (error) => {
+                        console.error("Error getting location:", error.message);
+                        console.warn("Using default location for temperature.");
+                        fetchTemperature(
+                            MEDELLIN_COORDS[0],
+                            MEDELLIN_COORDS[1],
+                        );
+                    },
+                    {
+                        enableHighAccuracy: false,
+                        timeout: 10000,
+                        maximumAge: 60000,
+                    },
+                );
+            } else {
+                console.warn("Geolocation is not supported.");
+                fetchTemperature(MEDELLIN_COORDS[0], MEDELLIN_COORDS[1]);
+            }
         }
 
         /**
@@ -490,22 +658,25 @@ import Icon from "./Icon.astro";
                 clearInterval(radarUpdateInterval);
             }
             radarUpdateInterval = window.setInterval(() => {
-                 console.log("Periodic radar refresh triggered.");
-                 if (isRadarAnimated) {
-                     // If animating, fetch new frames and restart animation
-                     console.log("Refreshing animation frames...");
-                     startRadarAnimation(mapInstance); // This will stop old animation and fetch new data
-                 } else if (currentRadarOverlay){
-                     // If static, just update the static image URL (cache buster)
-                     console.log("Refreshing static radar image...");
-                     const staticUrl = `${STATIC_RADAR_URL}?t=${new Date().getTime()}`;
-                     currentRadarOverlay.setUrl(staticUrl);
-                 } else {
+                console.log("Periodic radar refresh triggered.");
+                if (isRadarAnimated) {
+                    // If animating, fetch new frames and restart animation
+                    console.log("Refreshing animation frames...");
+                    startRadarAnimation(mapInstance); // This will stop old animation and fetch new data
+                } else if (currentRadarOverlay) {
+                    // If static, just update the static image URL (cache buster)
+                    console.log("Refreshing static radar image...");
+                    const staticUrl = `${STATIC_RADAR_URL}?t=${new Date().getTime()}`;
+                    currentRadarOverlay.setUrl(staticUrl);
+                } else {
                     // If overlay doesn't exist yet, create it with static image
-                    ensureRadarOverlay(mapInstance, `${STATIC_RADAR_URL}?t=${new Date().getTime()}`);
-                 }
-             }, RADAR_REFRESH_INTERVAL_MS);
-         }
+                    ensureRadarOverlay(
+                        mapInstance,
+                        `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
+                    );
+                }
+            }, RADAR_REFRESH_INTERVAL_MS);
+        }
 
         // --- Main Execution ---
         try {
@@ -514,17 +685,21 @@ import Icon from "./Icon.astro";
             setupThemeSwitcher(map, baseLayers);
 
             // Ensure the overlay layer exists initially with the static image
-            ensureRadarOverlay(map, `${STATIC_RADAR_URL}?t=${new Date().getTime()}`);
+            ensureRadarOverlay(
+                map,
+                `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
+            );
 
             setupEventListeners(map);
             handleGeolocation(map);
             startRadarRefresh(map); // Start periodic refresh
-
         } catch (error) {
             console.error("Failed to initialize map component:", error);
-            if (mapElement) { mapElement.innerHTML = '<p style="padding: 20px; text-align: center; color: red;">Error loading map.</p>'; }
+            if (mapElement) {
+                mapElement.innerHTML =
+                    '<p style="padding: 20px; text-align: center; color: red;">Error loading map.</p>';
+            }
             updateTemperatureUI(null, null, false, true);
         }
-
     }); // End of DOMContentLoaded listener
 </script>
