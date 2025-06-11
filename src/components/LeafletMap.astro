@@ -35,7 +35,7 @@ import Icon from "./Icon.astro";
                 try {
                     await navigator.share({
                         title: document.title,
-                        text: "Mira este radar meteorológico en tiempo real",
+                        text: "Te comparto este radar para ver la lluvias en tiempo real en Antioquia",
                         url: window.location.href,
                     });
                 } catch (err) {
@@ -90,12 +90,12 @@ import Icon from "./Icon.astro";
     .temperature-display {
         position: fixed;
         bottom: 100px;
-        right: 90px;
+        right: 20px;
         background-color: var(--theme-bg-alpha, rgba(255, 255, 255, 0.9));
         color: var(--theme-text, #000);
         padding: 10px 15px;
         border-radius: 8px;
-        z-index: 1000; /* Ensure display is above map */
+        z-index: 1000;
         box-shadow: var(--shadow-md);
         display: flex;
         flex-direction: column;
@@ -141,14 +141,14 @@ import Icon from "./Icon.astro";
     .switch-button {
         width: 150px;
         height: 40px;
-        z-index: 1000; /* Ensure button is above map */
+        z-index: 1000;
         border-radius: 20px;
         background-color: var(--gray-999);
         border: none;
         cursor: pointer;
         position: fixed;
         bottom: 40px;
-        right: 90px; /* Align with temperature display */
+        right: 20px;
         outline: none;
         transition: background-color 0.3s, color 0.3s;
         display: flex;
@@ -169,6 +169,16 @@ import Icon from "./Icon.astro";
     .switch-button.active {
         background-color: var(--accent-regular);
         color: white;
+    }
+
+    /* Media query for larger screens */
+    @media (min-width: 768px) {
+        .temperature-display {
+            right: 90px;
+        }
+        .switch-button {
+            right: 90px;
+        }
     }
 </style>
 
