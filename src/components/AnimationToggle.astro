@@ -1,0 +1,248 @@
+---
+// AnimationToggle.astro
+---
+
+<div class="wrapper">
+    <div class="toggle">
+        <input class="toggle-input" type="checkbox" />
+        <div class="toggle-bg"></div>
+        <div class="toggle-switch">
+            <div class="toggle-switch-figure"></div>
+            <div class="toggle-switch-figureAlt"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .wrapper {
+        position: fixed;
+        bottom: 50px;
+        right: -10px;
+        z-index: 1000;
+        width: 200px;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .toggle {
+        position: relative;
+        display: inline-block;
+        width: 100px;
+        margin-left: 20px;
+        padding: 4px;
+        border-radius: 40px;
+        cursor: pointer;
+    }
+
+    .toggle:before,
+    .toggle:after {
+        content: "";
+        display: table;
+    }
+
+    .toggle:after {
+        clear: both;
+    }
+
+    .toggle-bg {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        width: 100%;
+        height: 100%;
+        background-color: #c0e6f6;
+        border-radius: 40px;
+        border: 4px solid #81c0d5;
+        transition: all 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .toggle-input {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 1px solid red;
+        border-radius: 40px;
+        z-index: 2;
+        opacity: 0;
+    }
+    /* Sun */
+    .toggle-switch {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        margin-left: 50px;
+        background-color: #f5eb42;
+        border: 4px solid #e4c74d;
+        border-radius: 50%;
+        transition: all 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    /* Sun Cloud */
+    .toggle-switch-figure {
+        position: absolute;
+        bottom: -14px;
+        left: -50px;
+        display: block;
+        width: 80px;
+        height: 30px;
+        border: 8px solid #d4d4d2;
+        border-radius: 20px;
+        background-color: #fff;
+        transform: scale(0.4);
+        transition: all 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        animation: cloud-bounce 1.6s ease-in-out infinite alternate;
+    }
+
+    @keyframes cloud-bounce {
+        0% {
+            bottom: -10px;
+        }
+        50% {
+            bottom: -20px;
+        }
+        100% {
+            bottom: -10px;
+        }
+    }
+    /* Sun Cloud 2 */
+    .toggle-switch-figure:after {
+        content: "";
+        display: block;
+        position: relative;
+        top: -65px;
+        right: -42px;
+        width: 15px;
+        height: 15px;
+        border: 8px solid #d4d4d2;
+        border-radius: 100%;
+        border-right-color: transparent;
+        border-bottom-color: transparent;
+        transform: rotateZ(70deg);
+        background-color: #fff;
+    }
+    /* Sun Cloud 3 */
+    .toggle-switch-figure:before {
+        content: "";
+        display: block;
+        position: relative;
+        top: -25px;
+        right: -10px;
+        width: 30px;
+        height: 30px;
+        border: 8px solid #d2d3d4;
+        border-radius: 100%;
+        border-right-color: transparent;
+        border-bottom-color: transparent;
+        transform: rotateZ(30deg);
+        background-color: #fff;
+    }
+    /* Moon */
+    /* .toggle-switch-figureAlt {
+        content: "";
+        position: absolute;
+        top: 5px;
+        left: 2px;
+        width: 2px;
+        height: 2px;
+        background-color: #f5eb42;
+        border: 4px solid #e4c74d;
+        border-radius: 50%;
+        transition: all 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    } */
+
+    /* .toggle-switch-figureAlt:before {
+        content: "";
+        position: absolute;
+        top: -6px;
+        left: 18px;
+        width: 7px;
+        height: 7px;
+        background-color: #efeeda;
+        border-radius: 100%;
+        border: 4px solid #dee1c5;
+    }
+
+    .toggle-switch-figureAlt:after {
+        content: "";
+        position: absolute;
+        top: 19px;
+        left: 15px;
+        width: 2px;
+        height: 2px;
+        background-color: #efeeda;
+        border-radius: 100%;
+        border: 4px solid #dee1c5;
+    } */
+
+    .toggle-input:checked ~ .toggle-switch {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        margin-left: 0px;
+        background-color: #f5eb42;
+        border: 4px solid #e4c74d;
+        border-radius: 50%;
+        transition: all 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .toggle-input:checked ~ .toggle-bg {
+        background-color: #484848;
+        border-color: #202020;
+    }
+
+    .toggle-input:checked ~ .toggle-switch .toggle-switch-figure {
+        margin-left: 40px;
+        opacity: 0;
+        transform: scale(0.1);
+    }
+
+    .toggle-input:checked ~ .toggle-switch .toggle-switch-figureAlt {
+        transform: scale(1);
+    }
+    @media (min-width: 768px) {
+        .wrapper {
+            bottom: 30px;
+            right: 50px;
+        }
+    }
+</style>
+
+<script is:inline>
+    console.log("Client script loading...");
+
+    // This script will run after the component is hydrated on the client
+    const toggle = document.querySelector(".toggle-input");
+    console.log("Toggle element:", toggle);
+
+    if (!toggle) {
+        console.error("Toggle input element not found even with client:load");
+    }
+
+    // Get initial state from localStorage
+    const initialState = localStorage.getItem("toggleState") === "true";
+    toggle.checked = initialState;
+    console.log("Initial state set to:", initialState);
+
+    // Dispatch initial state event
+    setTimeout(() => {
+        console.log("Dispatching initial animation state:", !initialState);
+        document.dispatchEvent(
+            new CustomEvent("animationStateChanged", {
+                detail: { isAnimating: !initialState },
+            }),
+        );
+    }, 100);
+
+    // Listen for changes
+    toggle.addEventListener("change", function () {
+        localStorage.setItem("toggleState", String(toggle.checked));
+        console.log("Change state to:", toggle.checked);
+
+        document.dispatchEvent(
+            new CustomEvent("animationStateChanged", {
+                detail: { isAnimating: !toggle.checked },
+            }),
+        );
+    });
+</script>

@@ -6,11 +6,13 @@
 // at the user's location or the map center.
 
 import Icon from "./Icon.astro";
+import AnimationToggle from "./AnimationToggle.astro";
 ---
 
+<AnimationToggle client:load/>
 <div id="map" class="map-container"></div>
 
-<button id="switchButton" class="switch-button">Est&aacute;tico</button>
+<!-- <button id="switchButton" class="switch-button">Est&aacute;tico</button> -->
 
 <div id="temperatureDisplay" class="temperature-display">
     <Icon icon="weather" size="2.0em" />
@@ -89,7 +91,7 @@ import Icon from "./Icon.astro";
     /* Temperature display styling */
     .temperature-display {
         position: fixed;
-        bottom: 100px;
+        bottom: 130px;
         right: 20px;
         background-color: var(--theme-bg-alpha, rgba(255, 255, 255, 0.9));
         color: var(--theme-text, #000);
@@ -150,7 +152,9 @@ import Icon from "./Icon.astro";
         bottom: 40px;
         right: 20px;
         outline: none;
-        transition: background-color 0.3s, color 0.3s;
+        transition:
+            background-color 0.3s,
+            color 0.3s;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -604,19 +608,42 @@ import Icon from "./Icon.astro";
         }
 
         function setupEventListeners(mapInstance: L.Map): void {
-            /* ... (same as before, calls toggleRadarOverlay) ... */
-            if (switchButtonElement) {
-                switchButtonElement.addEventListener("click", () => {
-                    toggleRadarOverlay(mapInstance); // The core logic is now here
-                });
-            } else {
-                console.warn(
-                    "Switch button element not found. Toggle functionality disabled.",
-                );
-            }
+            // Listen for the custom event from AnimationToggle component
+            document.addEventListener("animationStateChanged", (event) => {
+                // Type assertion to CustomEvent to access 'detail'
+                const customEvent = event as CustomEvent<{
+                    isAnimating: boolean;
+                }>;
+                const isAnimating = customEvent.detail.isAnimating;
+                console.log("Animation state changed:", isAnimating);
+
+                // Update the internal state
+                isRadarAnimated = isAnimating;
+
+                if (isRadarAnimated) {
+                    // Switched TO animated
+                    startRadarAnimation(mapInstance);
+                } else {
+                    // Switched TO static
+                    stopRadarAnimation();
+                    // Update overlay to show the latest static image
+                    ensureRadarOverlay(
+                        mapInstance,
+                        `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
+                    );
+                }
+            });
+
+            // Keep the window resize listener
             window.addEventListener("resize", () => {
                 mapInstance.invalidateSize();
             });
+        }
+
+        function getInitialToggleState(): boolean {
+            const toggle =
+                document.querySelector<HTMLInputElement>(".toggle-input");
+            return toggle ? toggle.checked : false;
         }
 
         function handleGeolocation(mapInstance: L.Map): void {
@@ -629,7 +656,7 @@ import Icon from "./Icon.astro";
                         mapInstance.setView(userCoords, USER_LOCATION_ZOOM);
                         const userIcon = L.icon({
                             iconUrl: USER_ICON_URL,
-                            iconSize: [38, 38],
+                            iconSize: [50, 50],
                             iconAnchor: [19, 38],
                             popupAnchor: [0, -38],
                         });
@@ -694,15 +721,23 @@ import Icon from "./Icon.astro";
             const baseLayers = getBaseLayers();
             setupThemeSwitcher(map, baseLayers);
 
-            // Ensure the overlay layer exists initially with the static image
-            ensureRadarOverlay(
-                map,
-                `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
-            );
+            // Get initial state from the toggle and sync
+            isRadarAnimated = getInitialToggleState();
+
+            if (isRadarAnimated) {
+                // Start with animation if toggle is checked
+                startRadarAnimation(map);
+            } else {
+                // Ensure the overlay layer exists initially with the static image
+                ensureRadarOverlay(
+                    map,
+                    `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
+                );
+            }
 
             setupEventListeners(map);
             handleGeolocation(map);
-            startRadarRefresh(map); // Start periodic refresh
+            startRadarRefresh(map);
         } catch (error) {
             console.error("Failed to initialize map component:", error);
             if (mapElement) {
