@@ -6,13 +6,13 @@
 // at the user's location or the map center.
 
 import Icon from "./Icon.astro";
-import AnimationToggle from "./AnimationToggle.astro";
----
+// import AnimationToggle from "./AnimationToggle.astro";
+--- 
 
-<AnimationToggle client:load/>
+<!-- <AnimationToggle client:load/> -->
 <div id="map" class="map-container"></div>
 
-<!-- <button id="switchButton" class="switch-button">Est&aacute;tico</button> -->
+<button id="switchButton" class="switch-button">Est&aacute;tico</button>
 
 <div id="temperatureDisplay" class="temperature-display">
     <Icon icon="weather" size="2.0em" />
@@ -606,39 +606,53 @@ import AnimationToggle from "./AnimationToggle.astro";
                 );
             }
         }
-
         function setupEventListeners(mapInstance: L.Map): void {
-            // Listen for the custom event from AnimationToggle component
-            document.addEventListener("animationStateChanged", (event) => {
-                // Type assertion to CustomEvent to access 'detail'
-                const customEvent = event as CustomEvent<{
-                    isAnimating: boolean;
-                }>;
-                const isAnimating = customEvent.detail.isAnimating;
-                console.log("Animation state changed:", isAnimating);
-
-                // Update the internal state
-                isRadarAnimated = isAnimating;
-
-                if (isRadarAnimated) {
-                    // Switched TO animated
-                    startRadarAnimation(mapInstance);
-                } else {
-                    // Switched TO static
-                    stopRadarAnimation();
-                    // Update overlay to show the latest static image
-                    ensureRadarOverlay(
-                        mapInstance,
-                        `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
-                    );
-                }
-            });
-
-            // Keep the window resize listener
+            /* ... (same as before, calls toggleRadarOverlay) ... */
+            if (switchButtonElement) {
+                switchButtonElement.addEventListener("click", () => {
+                    toggleRadarOverlay(mapInstance); // The core logic is now here
+                });
+            } else {
+                console.warn(
+                    "Switch button element not found. Toggle functionality disabled.",
+                );
+            }
             window.addEventListener("resize", () => {
                 mapInstance.invalidateSize();
             });
         }
+        // function setupEventListeners(mapInstance: L.Map): void {
+        //     // Listen for the custom event from AnimationToggle component
+        //     document.addEventListener("animationStateChanged", (event) => {
+        //         // Type assertion to CustomEvent to access 'detail'
+        //         const customEvent = event as CustomEvent<{
+        //             isAnimating: boolean;
+        //         }>;
+        //         const isAnimating = customEvent.detail.isAnimating;
+        //         console.log("Animation state changed:", isAnimating);
+
+        //         // Update the internal state
+        //         isRadarAnimated = isAnimating;
+
+        //         if (isRadarAnimated) {
+        //             // Switched TO animated
+        //             startRadarAnimation(mapInstance);
+        //         } else {
+        //             // Switched TO static
+        //             stopRadarAnimation();
+        //             // Update overlay to show the latest static image
+        //             ensureRadarOverlay(
+        //                 mapInstance,
+        //                 `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
+        //             );
+        //         }
+        //     });
+
+        //     // Keep the window resize listener
+        //     window.addEventListener("resize", () => {
+        //         mapInstance.invalidateSize();
+        //     });
+        // }
 
         function getInitialToggleState(): boolean {
             const toggle =
@@ -734,6 +748,77 @@ import AnimationToggle from "./AnimationToggle.astro";
                     `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
                 );
             }
+
+            // Add custom small pin marker with person image at specific coordinates
+            const personPinCoords: L.LatLngTuple = [6.315236, -76.134347]; // Example: Laureles, Medellín
+            
+            // Function to calculate icon size based on zoom level
+            function getIconSize(zoom: number): [number, number] {
+                // Base width at zoom level 10
+                const baseWidth = 26;
+                const baseZoom = 10;
+                
+                // Calculate size multiplier based on zoom difference
+                const zoomDiff = zoom - baseZoom;
+                const sizeMultiplier = Math.pow(1.2, zoomDiff); // 1.2x per zoom level
+                
+                const width = Math.max(12, Math.min(80, baseWidth * sizeMultiplier)); // Min 12px, Max 80px
+                const height = width * 1.5; // Double height for non-square image
+                return [width, height];
+            }
+            
+            // Function to calculate anchor based on icon size
+            function getIconAnchor(size: number): [number, number] {
+                return [size / 2, size];
+            }
+            
+            // Function to calculate popup anchor based on icon size
+            function getPopupAnchor(size: number): [number, number] {
+                return [0, -size];
+            }
+            
+            // Create initial icon
+            let personPinIcon = L.icon({
+                iconUrl: "/j.png",
+                iconSize: getIconSize(map!.getZoom()),
+                iconAnchor: getIconAnchor(getIconSize(map!.getZoom())[0]),
+                popupAnchor: getPopupAnchor(getIconSize(map!.getZoom())[0]),
+            });
+            
+            // Create marker (initially hidden)
+            const personMarker = L.marker(personPinCoords, { icon: personPinIcon });
+            
+            // Function to show/hide marker based on zoom level
+            function updateMarkerVisibility(zoom: number) {
+                const minZoomToShow = 12; // Only show when zoomed in to level 12 or higher
+                
+                if (zoom >= minZoomToShow) {
+                    if (!map!.hasLayer(personMarker)) {
+                        personMarker.addTo(map!);
+                    }
+                    // Update icon size when visible
+                    const newSize = getIconSize(zoom);
+                    const newIcon = L.icon({
+                        iconUrl: "/j.png",
+                        iconSize: newSize,
+                        iconAnchor: getIconAnchor(newSize[0]),
+                        popupAnchor: getPopupAnchor(newSize[0]),
+                    });
+                    personMarker.setIcon(newIcon);
+                } else {
+                    if (map!.hasLayer(personMarker)) {
+                        personMarker.removeFrom(map!);
+                    }
+                }
+            }
+            
+            // Update marker visibility and size on zoom change
+            map!.on('zoomend', () => {
+                updateMarkerVisibility(map!.getZoom());
+            });
+            
+            // Set initial visibility
+            updateMarkerVisibility(map!.getZoom());
 
             setupEventListeners(map);
             handleGeolocation(map);
