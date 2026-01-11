@@ -750,8 +750,9 @@ import Icon from "./Icon.astro";
             }
 
             // Add custom small pin marker with person image at specific coordinates
-            const personPinCoords: L.LatLngTuple = [6.315236, -76.134347]; // Example: Laureles, Medellín
-            
+
+            // const personPinCoords: L.LatLngTuple = [6.315236, -76.134347]; // Example: Laureles, Medellín
+            const personPinCoords: L.LatLngTuple = [6.333987073709573, -76.12173544232868]; // Example: Laureles, Medellín
             // Function to calculate icon size based on zoom level
             function getIconSize(zoom: number): [number, number] {
                 // Base width at zoom level 10
@@ -779,7 +780,7 @@ import Icon from "./Icon.astro";
             
             // Create initial icon
             let personPinIcon = L.icon({
-                iconUrl: "/j.png",
+                iconUrl: "/lucho.png",
                 iconSize: getIconSize(map!.getZoom()),
                 iconAnchor: getIconAnchor(getIconSize(map!.getZoom())[0]),
                 popupAnchor: getPopupAnchor(getIconSize(map!.getZoom())[0]),
@@ -799,7 +800,7 @@ import Icon from "./Icon.astro";
                     // Update icon size when visible
                     const newSize = getIconSize(zoom);
                     const newIcon = L.icon({
-                        iconUrl: "/j.png",
+                        iconUrl: "/lucho.png",
                         iconSize: newSize,
                         iconAnchor: getIconAnchor(newSize[0]),
                         popupAnchor: getPopupAnchor(newSize[0]),
