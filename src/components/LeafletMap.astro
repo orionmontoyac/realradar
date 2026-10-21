@@ -199,8 +199,6 @@ import Icon from "./Icon.astro";
         const MAX_ZOOM = 18;
         const RADAR_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes (adjust as needed)
         const WEATHER_API_KEY = import.meta.env.PUBLIC_WEATHER_API_KEY;
-        const STATIC_RADAR_URL =
-            "https://siata.gov.co/kml/00_Radar/Ultimo_Barrido/AreaMetRadar_10_120_DBZH.png";
         // SIATA API and Image Base Configuration
         const SIATA_API_ENDPOINT =
             "https://siata.gov.co/newpage/widget-animacion_radar-getRadarImages1.php";
@@ -466,6 +464,36 @@ import Icon from "./Icon.astro";
             }
         }
 
+        /** Returns the newest frame. The API list is oldest-first. */
+        function getLatestFrameUrl(urls: string[]): string | null {
+            return urls.length > 0 ? urls[urls.length - 1] : null;
+        }
+
+        /**
+         * Shows the latest animation frame as the static radar image.
+         * Refetches when asked, or when no frames are cached yet.
+         */
+        async function showStaticRadar(
+            mapInstance: L.Map,
+            options: { refetch?: boolean } = {},
+        ): Promise<void> {
+            try {
+                if (options.refetch || radarFrameUrls.length === 0) {
+                    radarFrameUrls = await fetchRadarImageUrls();
+                }
+                const latestUrl = getLatestFrameUrl(radarFrameUrls);
+                if (!latestUrl) {
+                    throw new Error(
+                        "No radar frames available for static mode.",
+                    );
+                }
+                ensureRadarOverlay(mapInstance, latestUrl);
+            } catch (error) {
+                console.error("Failed to show static radar frame:", error);
+                ensureRadarOverlay(mapInstance, ERROR_OVERLAY_URL);
+            }
+        }
+
         /**
          * Creates the radar ImageOverlay layer if it doesn't exist.
          * Sets the initial URL (usually the static one or the first frame).
@@ -532,10 +560,7 @@ import Icon from "./Icon.astro";
                         switchButtonElement.classList.remove("active");
                         switchButtonElement.textContent = "Estático";
                     }
-                    ensureRadarOverlay(
-                        mapInstance,
-                        `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
-                    );
+                    ensureRadarOverlay(mapInstance, ERROR_OVERLAY_URL);
                     isFetchingFrames = false;
                     return; // Exit if no frames
                 }
@@ -562,11 +587,7 @@ import Icon from "./Icon.astro";
                 console.log("Radar animation started.");
             } catch (error) {
                 console.error("Failed to start radar animation:", error);
-                // Attempt to show static image as fallback
-                ensureRadarOverlay(
-                    mapInstance,
-                    `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
-                );
+                ensureRadarOverlay(mapInstance, ERROR_OVERLAY_URL);
                 // Optionally revert button state
                 isRadarAnimated = false;
                 if (switchButtonElement) {
@@ -597,13 +618,9 @@ import Icon from "./Icon.astro";
                 // Switched TO animated
                 startRadarAnimation(mapInstance);
             } else {
-                // Switched TO static
+                // Switched TO static: reuse loaded frames, fetch only if empty
                 stopRadarAnimation();
-                // Update overlay to show the latest static image
-                ensureRadarOverlay(
-                    mapInstance,
-                    `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
-                );
+                showStaticRadar(mapInstance);
             }
         }
         function setupEventListeners(mapInstance: L.Map): void {
@@ -640,11 +657,7 @@ import Icon from "./Icon.astro";
         //         } else {
         //             // Switched TO static
         //             stopRadarAnimation();
-        //             // Update overlay to show the latest static image
-        //             ensureRadarOverlay(
-        //                 mapInstance,
-        //                 `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
-        //             );
+        //             showStaticRadar(mapInstance);
         //         }
         //     });
 
@@ -701,7 +714,7 @@ import Icon from "./Icon.astro";
 
         /**
          * Starts the periodic refresh of the radar data.
-         * If animated, fetches new frames. If static, refreshes the static image URL.
+         * If animated, fetches new frames. If static, refetches and shows the latest frame.
          * @param {L.Map} mapInstance - The Leaflet map instance.
          */
         function startRadarRefresh(mapInstance: L.Map): void {
@@ -714,17 +727,10 @@ import Icon from "./Icon.astro";
                     // If animating, fetch new frames and restart animation
                     console.log("Refreshing animation frames...");
                     startRadarAnimation(mapInstance); // This will stop old animation and fetch new data
-                } else if (currentRadarOverlay) {
-                    // If static, just update the static image URL (cache buster)
-                    console.log("Refreshing static radar image...");
-                    const staticUrl = `${STATIC_RADAR_URL}?t=${new Date().getTime()}`;
-                    currentRadarOverlay.setUrl(staticUrl);
                 } else {
-                    // If overlay doesn't exist yet, create it with static image
-                    ensureRadarOverlay(
-                        mapInstance,
-                        `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
-                    );
+                    // If static, refetch frames and show the latest one
+                    console.log("Refreshing static radar image...");
+                    showStaticRadar(mapInstance, { refetch: true });
                 }
             }, RADAR_REFRESH_INTERVAL_MS);
         }
@@ -742,11 +748,8 @@ import Icon from "./Icon.astro";
                 // Start with animation if toggle is checked
                 startRadarAnimation(map);
             } else {
-                // Ensure the overlay layer exists initially with the static image
-                ensureRadarOverlay(
-                    map,
-                    `${STATIC_RADAR_URL}?t=${new Date().getTime()}`,
-                );
+                // Show the latest animation frame as the static image
+                showStaticRadar(map);
             }
 
             // Add custom small pin marker with person image at specific coordinates
