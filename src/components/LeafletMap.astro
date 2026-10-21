@@ -110,6 +110,9 @@ import Icon from "./Icon.astro";
             <span class="share-value">Compartir</span>
         </button>
     </div>
+    <p id="radarDockTimestamp" class="radar-dock-timestamp" aria-live="polite">
+        Imagen: —
+    </p>
     <div class="map-action-bar">
         <button
             type="button"
@@ -157,7 +160,7 @@ import Icon from "./Icon.astro";
 </script>
 <style>
     :global(.page-map) {
-        --map-dock-height: 132px;
+        --map-dock-height: 156px;
         display: flex;
         flex-direction: column;
         min-height: 100dvh;
@@ -515,6 +518,18 @@ import Icon from "./Icon.astro";
         text-overflow: ellipsis;
     }
 
+    .radar-dock-timestamp {
+        margin: 0;
+        padding: 6px 12px 0;
+        font-size: 0.8125rem;
+        line-height: 1.35;
+        font-weight: 500;
+        color: var(--gray-500);
+        text-align: center;
+        border-bottom: 1px solid var(--gray-800);
+        transition: color var(--theme-transition);
+    }
+
     .share-button {
         flex-shrink: 0;
         min-height: 44px;
@@ -816,6 +831,9 @@ import Icon from "./Icon.astro";
         const radarErrorElement = document.getElementById("radarError");
         const radarTimestampElement =
             document.getElementById("radarTimestamp");
+        const radarDockTimestampElement = document.getElementById(
+            "radarDockTimestamp",
+        );
         const radarScrubberElement = document.getElementById("radarScrubber");
         const radarPlayPauseElement =
             document.getElementById("radarPlayPause");
@@ -1133,12 +1151,14 @@ import Icon from "./Icon.astro";
                 return undefined;
             }
             const raw = match[1];
-            const year = Number(raw.slice(0, 4));
-            const month = Number(raw.slice(4, 6)) - 1;
-            const day = Number(raw.slice(6, 8));
-            const hour = Number(raw.slice(8, 10));
-            const minute = Number(raw.slice(10, 12));
-            return Date.UTC(year, month, day, hour, minute);
+            const year = raw.slice(0, 4);
+            const month = raw.slice(4, 6);
+            const day = raw.slice(6, 8);
+            const hour = raw.slice(8, 10);
+            const minute = raw.slice(10, 12);
+            return Date.parse(
+                `${year}-${month}-${day}T${hour}:${minute}:00-05:00`,
+            );
         }
 
         function formatSweepTime(index: number): string {
@@ -1152,11 +1172,12 @@ import Icon from "./Icon.astro";
             } else if (timestampMs < 1e12) {
                 timestampMs *= 1000;
             }
-            return new Intl.DateTimeFormat("es-CO", {
-                hour: "2-digit",
-                minute: "2-digit",
+            const formatted = new Intl.DateTimeFormat("es-CO", {
+                dateStyle: "medium",
+                timeStyle: "short",
                 timeZone: "America/Bogota",
             }).format(new Date(timestampMs));
+            return `${formatted} · Bogotá`;
         }
 
         function updateRadarTimestamp(
@@ -1164,18 +1185,29 @@ import Icon from "./Icon.astro";
                 ? currentFrameIndex
                 : Math.max(0, radarFrameUrls.length - 1),
         ): void {
-            if (!radarTimestampElement) {
+            if (!radarTimestampElement && !radarDockTimestampElement) {
                 return;
             }
             if (radarFrameUrls.length === 0) {
-                radarTimestampElement.textContent = "Barrido: —";
+                if (radarDockTimestampElement) {
+                    radarDockTimestampElement.textContent = "Imagen: —";
+                }
+                if (radarTimestampElement) {
+                    radarTimestampElement.textContent = "Barrido: —";
+                }
                 return;
             }
             const safeIndex = Math.min(
                 Math.max(index, 0),
                 radarFrameUrls.length - 1,
             );
-            radarTimestampElement.textContent = `Barrido: ${formatSweepTime(safeIndex)}`;
+            const formatted = formatSweepTime(safeIndex);
+            if (radarDockTimestampElement) {
+                radarDockTimestampElement.textContent = `Imagen: ${formatted}`;
+            }
+            if (radarTimestampElement) {
+                radarTimestampElement.textContent = `Barrido: ${formatted}`;
+            }
         }
 
         function updateScrubberUi(): void {
