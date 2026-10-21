@@ -12,21 +12,118 @@ import Icon from "./Icon.astro";
 <!-- <AnimationToggle client:load/> -->
 <div id="map" class="map-container"></div>
 
-<button id="switchButton" class="switch-button">Ver animaci&oacute;n</button>
+<div
+    id="mapControlsBackdrop"
+    class="map-controls-backdrop"
+    aria-hidden="true"
+></div>
+<aside
+    id="mapControlsPanel"
+    class="map-controls-panel"
+    aria-hidden="true"
+    aria-labelledby="mapControlsTitle"
+>
+    <header class="map-controls-header">
+        <span class="map-controls-drag" aria-hidden="true"></span>
+        <div class="map-controls-heading">
+            <h2 id="mapControlsTitle" class="map-controls-title">
+                Capas del radar
+            </h2>
+            <p id="radarTimestamp" class="map-controls-subtitle radar-timestamp">
+                Barrido: —
+            </p>
+        </div>
+        <button
+            type="button"
+            id="mapControlsClose"
+            class="map-controls-close"
+            aria-label="Cerrar controles"
+        >
+            <span aria-hidden="true">×</span>
+        </button>
+    </header>
+    <div class="map-controls-body">
+        <div id="radarStatus" class="radar-status" aria-live="polite">
+            <span id="radarLoading" class="radar-loading hidden"
+                >Cargando radar…</span
+            >
+            <span id="radarError" class="radar-error hidden"></span>
+        </div>
+        <div id="radarHud" class="radar-hud">
+            <section
+                class="radar-control-group"
+                aria-label="Intensidad de lluvia (dBZ)"
+            >
+                <span class="radar-group-label">Intensidad (dBZ)</span>
+                <div class="radar-legend-bar"></div>
+                <div class="radar-legend-labels">
+                    <span>Débil</span>
+                    <span>Fuerte</span>
+                </div>
+            </section>
+            <label class="radar-control-group radar-opacity">
+                <span class="radar-group-label">Opacidad del radar</span>
+                <input
+                    type="range"
+                    id="radarOpacity"
+                    min="30"
+                    max="80"
+                    value="60"
+                    aria-label="Opacidad del radar"
+                />
+            </label>
+            <div id="radarScrubber" class="radar-control-group radar-scrubber hidden">
+                <span class="radar-group-label">Línea de tiempo</span>
+                <div class="radar-scrubber-row">
+                    <button type="button" id="radarPlayPause">Pausar</button>
+                    <input
+                        type="range"
+                        id="radarFrameSlider"
+                        min="0"
+                        max="0"
+                        value="0"
+                        aria-label="Fotograma del radar"
+                    />
+                </div>
+            </div>
+        </div>
+    </div>
+</aside>
 
-<div id="temperatureDisplay" class="temperature-display">
-    <Icon icon="weather" size="2.0em" />
-    <span class="temp-value">--°C</span>
-    <span class="location-name">Loading...</span>
-    <button
-        id="shareButton"
-        class="share-button"
-        type="button"
-        title="Compartir esta página"
-    >
-        <Icon icon="share" size="2.0em" />
-        <span class="share-value">Compartir</span>
-    </button>
+<div class="map-persistent-controls">
+    <div id="temperatureDisplay" class="temperature-display">
+        <div class="weather-summary">
+            <Icon icon="weather" size="1.6em" />
+            <div class="weather-text">
+                <span class="temp-value">--°C</span>
+                <span class="location-name">Loading...</span>
+            </div>
+        </div>
+        <button
+            id="shareButton"
+            class="share-button"
+            type="button"
+            title="Compartir esta página"
+            aria-label="Compartir esta página"
+        >
+            <Icon icon="share" size="1.6em" />
+            <span class="share-value">Compartir</span>
+        </button>
+    </div>
+    <div class="map-action-bar">
+        <button
+            type="button"
+            id="mapControlsFab"
+            class="map-controls-fab"
+            aria-expanded="false"
+            aria-controls="mapControlsPanel"
+        >
+            Controles
+        </button>
+        <button id="switchButton" class="switch-button"
+            >Ver animaci&oacute;n</button
+        >
+    </div>
 </div>
 
 <script type="module">
@@ -59,6 +156,18 @@ import Icon from "./Icon.astro";
     }
 </script>
 <style>
+    :global(.page-map) {
+        --map-dock-height: 132px;
+        display: flex;
+        flex-direction: column;
+        min-height: 100dvh;
+        overflow: hidden;
+    }
+
+    :global(.page-map nav) {
+        margin-bottom: 0;
+    }
+
     /* Basic reset for full-screen map */
     html,
     body {
@@ -69,8 +178,16 @@ import Icon from "./Icon.astro";
 
     /* Map container styling */
     .map-container {
-        height: 100vh; /* Full viewport height */
-        width: 100vw; /* Full viewport width */
+        position: relative;
+        height: 100vh;
+        width: 100%;
+    }
+
+    :global(.page-map) .map-container {
+        flex: 1;
+        height: auto;
+        min-height: 0;
+        width: 100%;
     }
 
     /* Ensure map overlays correctly */
@@ -78,6 +195,8 @@ import Icon from "./Icon.astro";
         position: absolute;
         top: 0;
         left: 0;
+        height: 100%;
+        width: 100%;
         z-index: 1; /* Base layer z-index */
     }
 
@@ -88,100 +207,564 @@ import Icon from "./Icon.astro";
         transition: opacity 0.2s ease-in-out;
     }
 
-    /* Temperature display styling */
-    .temperature-display {
+    .map-persistent-controls {
         position: fixed;
-        bottom: 130px;
-        right: 20px;
-        background-color: var(--theme-bg-alpha, rgba(255, 255, 255, 0.9));
-        color: var(--theme-text, #000);
-        padding: 10px 15px;
-        border-radius: 8px;
-        z-index: 1000;
-        box-shadow: var(--shadow-md);
+        z-index: 1004;
+        left: 12px;
+        right: 12px;
+        bottom: max(10px, env(safe-area-inset-bottom));
         display: flex;
         flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        transition: all 0.3s ease;
+        gap: 0;
+        pointer-events: none;
+        background: var(--gray-999);
+        color: var(--gray-100);
+        border: 1px solid var(--gray-800);
+        border-radius: 18px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+        transition:
+            background-color var(--theme-transition),
+            border-color var(--theme-transition),
+            box-shadow var(--theme-transition);
     }
 
-    /* Dark theme overrides for temperature display */
-    .theme-dark .temperature-display {
-        --theme-bg-alpha: rgba(30, 30, 30, 0.9);
-        --theme-text: white;
-        --location-text-color: var(--gray-400);
+    .map-persistent-controls > * {
+        pointer-events: auto;
     }
 
-    /* Temperature value text style */
-    .temp-value {
+    .map-action-bar {
+        display: grid;
+        grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+        gap: 8px;
+        align-items: stretch;
+        padding: 10px 10px 12px;
+    }
+
+    .map-controls-fab {
+        min-height: 48px;
+        padding: 0 16px;
+        border: none;
+        border-radius: 14px;
+        background: radial-gradient(var(--gray-900), var(--gray-800) 150%);
+        color: var(--gray-0);
+        font-family: var(--font-brand, var(--font-system));
+        font-size: var(--text-sm);
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: var(--shadow-md);
+        white-space: nowrap;
+        position: relative;
+        transition:
+            opacity 0.2s ease,
+            transform 0.2s ease,
+            background-color var(--theme-transition),
+            color var(--theme-transition);
+    }
+
+    .map-controls-fab::before {
+        position: absolute;
+        inset: -1px;
+        content: "";
+        background: var(--gradient-stroke);
+        border-radius: 14px;
+        z-index: -1;
+        pointer-events: none;
+    }
+
+    body.map-controls-open .map-controls-fab {
+        opacity: 0;
+        pointer-events: none;
+        transform: scale(0.96);
+    }
+
+    .map-controls-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1005;
+        background: color-mix(in srgb, var(--gray-0) 55%, transparent);
+        backdrop-filter: blur(4px);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+            opacity 0.25s ease,
+            visibility 0.25s ease;
+    }
+
+    body.map-controls-open .map-controls-backdrop {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    .map-controls-panel {
+        position: fixed;
+        z-index: 1006;
+        left: 0;
+        right: 0;
+        bottom: calc(var(--map-dock-height, 132px) + env(safe-area-inset-bottom));
+        max-height: min(58dvh, 480px);
+        overflow-y: auto;
+        background: var(--gray-999);
+        color: var(--gray-100);
+        border-radius: 20px 20px 0 0;
+        border: 1px solid var(--gray-800);
+        border-bottom: none;
+        box-shadow: var(--shadow-lg);
+        transform: translateY(100%);
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+            transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+            visibility 0.28s ease,
+            background-color var(--theme-transition),
+            color var(--theme-transition),
+            border-color var(--theme-transition);
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        font-family: var(--font-brand, var(--font-system));
+    }
+
+    body.map-controls-open .map-controls-panel {
+        transform: translateY(0);
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    body.map-controls-open {
+        overflow: hidden;
+    }
+
+    body.map-controls-open .map-persistent-controls {
+        z-index: 1004;
+    }
+
+    .map-controls-header {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto;
+        gap: 4px 12px;
+        padding: 10px 16px 14px;
+        position: sticky;
+        top: 0;
+        background: var(--gray-999);
+        z-index: 1;
+        border-bottom: 1px solid var(--gray-800);
+    }
+
+    .map-controls-drag {
+        grid-column: 1 / -1;
+        justify-self: center;
+        width: 36px;
+        height: 4px;
+        border-radius: 999px;
+        background: var(--gray-600);
+        margin-bottom: 6px;
+    }
+
+    .map-controls-heading {
+        min-width: 0;
+    }
+
+    .map-controls-title {
+        margin: 0;
+        font-size: var(--text-md);
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--gray-0);
+    }
+
+    .map-controls-subtitle {
+        margin: 4px 0 0;
+        font-size: var(--text-sm);
+        color: var(--accent-regular);
+        font-weight: 600;
+    }
+
+    .map-controls-close {
+        grid-row: 2;
+        grid-column: 2;
+        align-self: start;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        background: radial-gradient(var(--gray-900), var(--gray-800) 150%);
+        color: var(--gray-300);
         font-size: 1.5rem;
-        font-weight: bold;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--shadow-sm);
+        transition:
+            background-color var(--theme-transition),
+            color var(--theme-transition);
     }
 
-    /* Location name text style */
+    .map-controls-close:hover,
+    .map-controls-close:focus-visible {
+        color: var(--gray-0);
+    }
+
+    .map-controls-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 4px 16px 16px;
+    }
+
+    .map-controls-panel .radar-status {
+        margin: 8px 0 0;
+        padding: 10px 12px;
+        background: color-mix(in srgb, var(--accent-regular) 12%, var(--gray-999));
+        border-radius: 10px;
+        border: 1px solid var(--gray-800);
+        font-size: var(--text-sm);
+        color: var(--gray-300);
+    }
+
+    .map-controls-panel .radar-status.hidden {
+        display: none;
+    }
+
+    .map-controls-panel .radar-loading {
+        color: var(--gray-300);
+    }
+
+    .map-controls-panel .radar-error {
+        color: #f87171;
+    }
+
+    .radar-control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px 0;
+        margin: 0;
+        border-top: 1px solid var(--gray-800);
+        background: transparent;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .radar-control-group:first-child {
+        border-top: none;
+        padding-top: 10px;
+    }
+
+    .radar-group-label {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--gray-500);
+    }
+
+    .map-controls-panel input[type="range"] {
+        width: 100%;
+        accent-color: var(--accent-regular);
+        min-height: 28px;
+    }
+
+    /* Temperature display styling */
+    .temperature-display {
+        width: 100%;
+        background: transparent;
+        color: var(--gray-100);
+        padding: 12px 12px 10px;
+        border-radius: 0;
+        border-bottom: 1px solid var(--gray-800);
+        box-shadow: none;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        transition: color var(--theme-transition);
+    }
+
+    .weather-summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .weather-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .temp-value {
+        font-size: 1.125rem;
+        font-weight: bold;
+        line-height: 1.1;
+        color: var(--gray-0);
+    }
+
     .location-name {
-        font-size: 0.875rem;
-        color: var(
-            --location-text-color,
-            var(--gray-500)
-        ); /* Default light theme color */
+        font-size: 0.8125rem;
+        color: var(--gray-400);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .share-button {
-        z-index: 1000;
-        box-shadow: var(--shadow-md);
+        flex-shrink: 0;
+        min-height: 44px;
+        min-width: 44px;
         display: flex;
         align-items: center;
         justify-content: center;
+        gap: 6px;
         padding: 0 10px;
-        font-family: Arial, sans-serif;
+        font-family: var(--font-brand, var(--font-system));
         font-size: var(--text-sm);
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        background: transparent;
+        color: var(--accent-regular);
+        transition: color var(--theme-transition);
     }
 
-    /* Styling for the overlay switch button */
+    .share-button:hover,
+    .share-button:focus-visible {
+        color: var(--accent-dark);
+    }
+
+    .share-value {
+        display: none;
+    }
+
     .switch-button {
-        width: 150px;
-        height: 40px;
-        z-index: 1000;
-        border-radius: 20px;
-        background-color: var(--gray-999);
+        width: 100%;
+        min-height: 48px;
+        border-radius: 14px;
+        background: radial-gradient(var(--gray-900), var(--gray-800) 150%);
         border: none;
         cursor: pointer;
-        position: fixed;
-        bottom: 40px;
-        right: 20px;
-        outline: none;
         transition:
-            background-color 0.3s,
-            color 0.3s;
+            background-color var(--theme-transition),
+            color var(--theme-transition),
+            box-shadow var(--theme-transition);
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 0 10px;
-        font-family: Arial, sans-serif;
+        font-family: var(--font-brand, var(--font-system));
         font-size: var(--text-sm);
-        font-weight: bolder;
-        color: var(--gray-50);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        font-weight: 600;
+        color: var(--gray-0);
+        box-shadow: var(--shadow-md);
+        position: relative;
+    }
+
+    .switch-button::before {
+        position: absolute;
+        inset: -1px;
+        content: "";
+        background: var(--gradient-stroke);
+        border-radius: 14px;
+        z-index: -1;
+        pointer-events: none;
+    }
+
+    .switch-button.active {
+        background: var(--gradient-accent);
+        color: var(--accent-text-over);
         box-shadow: var(--shadow-md);
     }
 
-    /* Active state style for the switch button */
-    .switch-button.active {
-        background-color: var(--accent-regular);
-        color: white;
+    .switch-button.active::before {
+        background: transparent;
     }
 
-    /* Media query for larger screens */
+    .radar-hud {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        width: 100%;
+    }
+
+    .map-controls-panel .radar-opacity,
+    .map-controls-panel .radar-scrubber {
+        width: 100%;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .radar-loading {
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    .radar-error {
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    .radar-timestamp {
+        font-weight: 600;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    .radar-legend-bar {
+        height: 20px;
+        width: 100%;
+        border-radius: 4px;
+        background: linear-gradient(
+            to right,
+            #00ffff 0%,
+            #00e800 15%,
+            #019000 30%,
+            #ffff00 45%,
+            #e7c000 60%,
+            #ff9000 75%,
+            #ff0000 90%,
+            #d600d6 100%
+        );
+    }
+
+    .radar-legend-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 6px;
+        font-size: 0.75rem;
+        color: var(--gray-400);
+    }
+
+    .radar-opacity {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        font-size: var(--text-sm);
+    }
+
+    .radar-scrubber-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .radar-scrubber-row input[type="range"] {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .radar-scrubber button {
+        flex-shrink: 0;
+        min-height: 44px;
+        border: none;
+        border-radius: 12px;
+        padding: 0 14px;
+        font-size: var(--text-sm);
+        font-weight: 600;
+        cursor: pointer;
+        background: var(--gradient-accent);
+        color: var(--accent-text-over);
+        font-family: var(--font-brand, var(--font-system));
+        box-shadow: var(--shadow-sm);
+    }
+
+    :global(.page-map) .leaflet-bottom.leaflet-left {
+        bottom: calc(var(--map-dock-height, 132px) + 8px);
+    }
+
     @media (min-width: 768px) {
-        .temperature-display {
-            right: 90px;
+        :global(.page-map) {
+            --map-dock-height: 0px;
         }
-        .switch-button {
+
+        .map-persistent-controls {
+            left: auto;
             right: 90px;
+            width: min(300px, calc(100vw - 180px));
+            border-radius: 20px;
+        }
+
+        .temperature-display {
+            flex-direction: column;
+            align-items: center;
+            padding: 14px 15px 12px;
+        }
+
+        .map-action-bar {
+            padding: 10px 12px 14px;
+        }
+
+        .weather-text {
+            align-items: center;
+            text-align: center;
+        }
+
+        .temp-value {
+            font-size: 1.5rem;
+        }
+
+        .share-value {
+            display: inline;
+        }
+
+        .share-button {
+            width: 100%;
+            background: transparent;
+        }
+
+        .map-action-bar {
+            grid-template-columns: 1fr;
+        }
+
+        .map-controls-panel {
+            left: auto;
+            right: 24px;
+            bottom: max(240px, calc(16px + env(safe-area-inset-bottom)));
+            width: min(360px, calc(100vw - 48px));
+            max-height: min(70vh, 520px);
+            border-radius: 20px;
+            border-bottom: 1px solid var(--gray-800);
+            transform: translateY(12px);
+            opacity: 0;
+        }
+
+        body.map-controls-open .map-controls-panel {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .map-controls-drag {
+            display: none;
+        }
+
+        :global(.page-map) .leaflet-bottom.leaflet-left {
+            bottom: 4px;
+        }
+
+        .radar-legend-bar {
+            height: 100px;
+            background: linear-gradient(
+                to top,
+                #00ffff 0%,
+                #00e800 15%,
+                #019000 30%,
+                #ffff00 45%,
+                #e7c000 60%,
+                #ff9000 75%,
+                #ff0000 90%,
+                #d600d6 100%
+            );
         }
     }
 </style>
@@ -218,7 +801,31 @@ import Icon from "./Icon.astro";
 
         // --- DOM Element References ---
         const mapElement = document.getElementById("map");
+        const mapControlsFabElement =
+            document.getElementById("mapControlsFab");
+        const mapControlsPanelElement =
+            document.getElementById("mapControlsPanel");
+        const mapControlsBackdropElement = document.getElementById(
+            "mapControlsBackdrop",
+        );
+        const mapControlsCloseElement =
+            document.getElementById("mapControlsClose");
         const switchButtonElement = document.getElementById("switchButton");
+        const radarStatusElement = document.getElementById("radarStatus");
+        const radarLoadingElement = document.getElementById("radarLoading");
+        const radarErrorElement = document.getElementById("radarError");
+        const radarTimestampElement =
+            document.getElementById("radarTimestamp");
+        const radarScrubberElement = document.getElementById("radarScrubber");
+        const radarPlayPauseElement =
+            document.getElementById("radarPlayPause");
+        const radarFrameSliderElement =
+            document.getElementById("radarFrameSlider") as
+                | HTMLInputElement
+                | null;
+        const radarOpacityElement = document.getElementById(
+            "radarOpacity",
+        ) as HTMLInputElement | null;
         const temperatureDisplayElement =
             document.getElementById("temperatureDisplay");
         const tempValueElement =
@@ -240,6 +847,73 @@ import Icon from "./Icon.astro";
                 : RADAR_BUTTON_LABEL_STATIC;
         }
 
+        let mapControlsOpen = false;
+
+        function updateMapControlsFabLabel(): void {
+            mapControlsFabElement?.setAttribute(
+                "aria-expanded",
+                String(mapControlsOpen),
+            );
+        }
+
+        function syncRadarStatusVisibility(): void {
+            if (!radarStatusElement) {
+                return;
+            }
+            const showStatus =
+                !radarLoadingElement?.classList.contains("hidden") ||
+                !radarErrorElement?.classList.contains("hidden");
+            radarStatusElement.classList.toggle("hidden", !showStatus);
+        }
+
+        function openMapControls(): void {
+            if (mapControlsOpen) {
+                return;
+            }
+            mapControlsOpen = true;
+            document.body.classList.add("map-controls-open");
+            mapControlsPanelElement?.setAttribute("aria-hidden", "false");
+            mapControlsBackdropElement?.setAttribute("aria-hidden", "false");
+            updateMapControlsFabLabel();
+        }
+
+        function closeMapControls(): void {
+            if (!mapControlsOpen) {
+                return;
+            }
+            mapControlsOpen = false;
+            document.body.classList.remove("map-controls-open");
+            mapControlsPanelElement?.setAttribute("aria-hidden", "true");
+            mapControlsBackdropElement?.setAttribute("aria-hidden", "true");
+            updateMapControlsFabLabel();
+        }
+
+        function toggleMapControls(): void {
+            if (mapControlsOpen) {
+                closeMapControls();
+            } else {
+                openMapControls();
+            }
+        }
+
+        function setupMapControlsPanel(): void {
+            mapControlsFabElement?.addEventListener("click", () => {
+                toggleMapControls();
+            });
+            mapControlsCloseElement?.addEventListener("click", () => {
+                closeMapControls();
+            });
+            mapControlsBackdropElement?.addEventListener("click", () => {
+                closeMapControls();
+            });
+            window.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    closeMapControls();
+                }
+            });
+            updateMapControlsFabLabel();
+        }
+
         // --- State Variables ---
         let map: L.Map | null = null;
         let currentBaseLayer: L.TileLayer | null = null;
@@ -248,9 +922,14 @@ import Icon from "./Icon.astro";
         let radarUpdateInterval: number | null = null;
         // Animation specific state
         let radarFrameUrls: string[] = []; // Holds the URLs for animation frames
+        let radarFrameDates: number[] = [];
         let currentFrameIndex: number = 0;
         let animationIntervalId: number | null = null; // ID for the animation setInterval
         let isFetchingFrames = false; // Flag to prevent multiple fetches
+        let isAnimationPaused = false;
+        let suppressScrubberInput = false;
+        let mapViewFromUrl = false;
+        let urlSyncTimeoutId: number | null = null;
 
         // --- Type Definitions ---
         interface WeatherApiResponse {
@@ -408,11 +1087,232 @@ import Icon from "./Icon.astro";
             }
         }
 
+        interface RadarFrameData {
+            urls: string[];
+            dates: number[];
+        }
+
+        function setRadarLoading(isLoading: boolean): void {
+            radarLoadingElement?.classList.toggle("hidden", !isLoading);
+            mapControlsFabElement?.setAttribute(
+                "aria-busy",
+                String(isLoading),
+            );
+            syncRadarStatusVisibility();
+        }
+
+        function setRadarError(message: string | null): void {
+            if (!radarErrorElement) {
+                return;
+            }
+            if (message) {
+                radarErrorElement.textContent = message;
+                radarErrorElement.classList.remove("hidden");
+                openMapControls();
+            } else {
+                radarErrorElement.textContent = "";
+                radarErrorElement.classList.add("hidden");
+            }
+            syncRadarStatusVisibility();
+        }
+
+        function getRadarOverlayOpacity(): number {
+            const value = Number(radarOpacityElement?.value ?? 60);
+            return value / 100;
+        }
+
+        function applyRadarOverlayOpacity(): void {
+            if (currentRadarOverlay) {
+                currentRadarOverlay.setOpacity(getRadarOverlayOpacity());
+            }
+        }
+
+        function timestampFromImageUrl(url: string): number | undefined {
+            const match = url.match(/(\d{12})\.png(?:\?|$)/);
+            if (!match) {
+                return undefined;
+            }
+            const raw = match[1];
+            const year = Number(raw.slice(0, 4));
+            const month = Number(raw.slice(4, 6)) - 1;
+            const day = Number(raw.slice(6, 8));
+            const hour = Number(raw.slice(8, 10));
+            const minute = Number(raw.slice(10, 12));
+            return Date.UTC(year, month, day, hour, minute);
+        }
+
+        function formatSweepTime(index: number): string {
+            let timestampMs = radarFrameDates[index];
+            if (timestampMs == null || Number.isNaN(timestampMs)) {
+                const fromUrl = timestampFromImageUrl(radarFrameUrls[index]);
+                if (fromUrl == null) {
+                    return "—";
+                }
+                timestampMs = fromUrl;
+            } else if (timestampMs < 1e12) {
+                timestampMs *= 1000;
+            }
+            return new Intl.DateTimeFormat("es-CO", {
+                hour: "2-digit",
+                minute: "2-digit",
+                timeZone: "America/Bogota",
+            }).format(new Date(timestampMs));
+        }
+
+        function updateRadarTimestamp(
+            index: number = isRadarAnimated
+                ? currentFrameIndex
+                : Math.max(0, radarFrameUrls.length - 1),
+        ): void {
+            if (!radarTimestampElement) {
+                return;
+            }
+            if (radarFrameUrls.length === 0) {
+                radarTimestampElement.textContent = "Barrido: —";
+                return;
+            }
+            const safeIndex = Math.min(
+                Math.max(index, 0),
+                radarFrameUrls.length - 1,
+            );
+            radarTimestampElement.textContent = `Barrido: ${formatSweepTime(safeIndex)}`;
+        }
+
+        function updateScrubberUi(): void {
+            if (!radarFrameSliderElement || !radarScrubberElement) {
+                return;
+            }
+            const lastIndex = Math.max(0, radarFrameUrls.length - 1);
+            suppressScrubberInput = true;
+            radarFrameSliderElement.max = String(lastIndex);
+            radarFrameSliderElement.value = String(
+                Math.min(currentFrameIndex, lastIndex),
+            );
+            suppressScrubberInput = false;
+            radarScrubberElement.classList.toggle(
+                "hidden",
+                !isRadarAnimated || radarFrameUrls.length <= 1,
+            );
+        }
+
+        function updatePlayPauseButton(): void {
+            if (!radarPlayPauseElement) {
+                return;
+            }
+            radarPlayPauseElement.textContent = isAnimationPaused
+                ? "Reproducir"
+                : "Pausar";
+        }
+
+        function setScrubberVisibility(isVisible: boolean): void {
+            if (!radarScrubberElement) {
+                return;
+            }
+            radarScrubberElement.classList.toggle("hidden", !isVisible);
+        }
+
+        function isValidMapView(
+            lat: number,
+            lon: number,
+            zoom: number,
+        ): boolean {
+            return (
+                Number.isFinite(lat) &&
+                Number.isFinite(lon) &&
+                Number.isFinite(zoom) &&
+                lat >= 4 &&
+                lat <= 8.5 &&
+                lon >= -78 &&
+                lon <= -73 &&
+                zoom >= MIN_ZOOM &&
+                zoom <= MAX_ZOOM
+            );
+        }
+
+        function clearInvalidMapUrlParams(): void {
+            const params = new URLSearchParams(window.location.search);
+            if (
+                !params.has("lat") &&
+                !params.has("lon") &&
+                !params.has("zoom") &&
+                !params.has("mode")
+            ) {
+                return;
+            }
+            const lat = Number(params.get("lat"));
+            const lon = Number(params.get("lon"));
+            const zoom = Number(params.get("zoom"));
+            if (isValidMapView(lat, lon, zoom)) {
+                return;
+            }
+            params.delete("lat");
+            params.delete("lon");
+            params.delete("zoom");
+            const query = params.toString();
+            const nextUrl = query
+                ? `${window.location.pathname}?${query}`
+                : window.location.pathname;
+            window.history.replaceState({}, "", nextUrl);
+        }
+
+        function syncMapUrl(mapInstance: L.Map): void {
+            if (urlSyncTimeoutId !== null) {
+                clearTimeout(urlSyncTimeoutId);
+            }
+            urlSyncTimeoutId = window.setTimeout(() => {
+                const center = mapInstance.getCenter();
+                const zoom = mapInstance.getZoom();
+                if (!isValidMapView(center.lat, center.lng, zoom)) {
+                    return;
+                }
+                const params = new URLSearchParams(window.location.search);
+                params.set("lat", center.lat.toFixed(5));
+                params.set("lon", center.lng.toFixed(5));
+                params.set("zoom", String(zoom));
+                params.set("mode", isRadarAnimated ? "anim" : "static");
+                const nextUrl = `${window.location.pathname}?${params.toString()}`;
+                window.history.replaceState({}, "", nextUrl);
+            }, 400);
+        }
+
+        function applyMapViewFromUrl(mapInstance: L.Map): boolean {
+            clearInvalidMapUrlParams();
+            const params = new URLSearchParams(window.location.search);
+            if (
+                !params.has("lat") ||
+                !params.has("lon") ||
+                !params.has("zoom")
+            ) {
+                return false;
+            }
+            const lat = Number(params.get("lat"));
+            const lon = Number(params.get("lon"));
+            const zoom = Number(params.get("zoom"));
+            if (!isValidMapView(lat, lon, zoom)) {
+                return false;
+            }
+            mapInstance.setView([lat, lon], zoom);
+            mapViewFromUrl = true;
+            return true;
+        }
+
+        function getInitialModeFromUrl(): boolean | null {
+            const mode = new URLSearchParams(window.location.search).get(
+                "mode",
+            );
+            if (mode === "anim") {
+                return true;
+            }
+            if (mode === "static") {
+                return false;
+            }
+            return null;
+        }
+
         /**
-         * Fetches the list of radar image URLs from the SIATA API.
-         * @returns {Promise<string[]>} A promise that resolves with an array of full image URLs, or rejects on error.
+         * Fetches radar frames from the SIATA API.
          */
-        async function fetchRadarImageUrls(): Promise<string[]> {
+        async function fetchRadarFrames(): Promise<RadarFrameData> {
             // Get current timestamp in seconds for the API
             const currentTimestampSeconds = Math.floor(Date.now() / 1000);
             const queryParams = new URLSearchParams({
@@ -467,11 +1367,14 @@ import Icon from "./Icon.astro";
                     return `${SIATA_IMAGE_BASE_URL}${cleanPath}`;
                 });
 
-                console.log(`Workspaceed ${fullUrls.length} radar image URLs.`);
-                return fullUrls;
+                const dates = Array.isArray(data.nameDates)
+                    ? data.nameDates
+                    : [];
+
+                console.log(`Fetched ${fullUrls.length} radar image URLs.`);
+                return { urls: fullUrls, dates };
             } catch (error) {
                 console.error("Error fetching radar image URLs:", error);
-                // Re-throw the error to be caught by the caller
                 throw error;
             }
         }
@@ -492,18 +1395,33 @@ import Icon from "./Icon.astro";
                     initialImageUrl,
                     RADAR_IMAGE_BOUNDS,
                     {
-                        opacity: 0.6,
+                        opacity: getRadarOverlayOpacity(),
                         interactive: false,
-                        errorOverlayUrl: ERROR_OVERLAY_URL, // Placeholder if image fails
+                        errorOverlayUrl: ERROR_OVERLAY_URL,
                     },
                 ).addTo(mapInstance);
             } else {
-                // If overlay exists, just update its URL
                 console.log("Updating existing radar overlay URL.");
                 currentRadarOverlay.setUrl(initialImageUrl);
             }
-            // Ensure opacity is set correctly (might reset on setUrl)
-            currentRadarOverlay.setOpacity(0.6);
+            applyRadarOverlayOpacity();
+        }
+
+        function displayRadarFrame(
+            mapInstance: L.Map,
+            frameIndex: number,
+        ): void {
+            if (
+                frameIndex < 0 ||
+                frameIndex >= radarFrameUrls.length ||
+                !radarFrameUrls[frameIndex]
+            ) {
+                return;
+            }
+            currentFrameIndex = frameIndex;
+            ensureRadarOverlay(mapInstance, radarFrameUrls[frameIndex]);
+            updateRadarTimestamp(frameIndex);
+            updateScrubberUi();
         }
 
         /** Most recent sweep. Frames are oldest-first. */
@@ -519,33 +1437,69 @@ import Icon from "./Icon.astro";
             mapInstance: L.Map,
             { refetch }: { refetch: boolean },
         ): Promise<void> {
+            setRadarError(null);
+            setRadarLoading(true);
             try {
                 if (refetch || radarFrameUrls.length === 0) {
-                    radarFrameUrls = await fetchRadarImageUrls();
+                    const frames = await fetchRadarFrames();
+                    radarFrameUrls = frames.urls;
+                    radarFrameDates = frames.dates;
                 }
+                const latestIndex = radarFrameUrls.length - 1;
                 const latestUrl = latestRadarFrameUrl();
                 if (!latestUrl) {
                     console.error(
                         "No radar frames available for the static overlay.",
                     );
+                    setRadarError("No hay datos de radar disponibles.");
                     ensureRadarOverlay(mapInstance, ERROR_OVERLAY_URL);
+                    updateRadarTimestamp();
                     return;
                 }
+                currentFrameIndex = latestIndex;
                 ensureRadarOverlay(mapInstance, latestUrl);
+                updateRadarTimestamp(latestIndex);
+                setScrubberVisibility(false);
             } catch (error) {
                 console.error("Failed to show static radar frame:", error);
+                setRadarError("No se pudo cargar el radar.");
                 ensureRadarOverlay(mapInstance, ERROR_OVERLAY_URL);
+                updateRadarTimestamp();
+            } finally {
+                setRadarLoading(false);
+                syncMapUrl(mapInstance);
+            }
+        }
+
+        function stopAnimationTimer(): void {
+            if (animationIntervalId !== null) {
+                clearInterval(animationIntervalId);
+                animationIntervalId = null;
             }
         }
 
         /** Clears the animation interval. */
         function stopRadarAnimation(): void {
-            if (animationIntervalId !== null) {
-                console.log("Stopping radar animation.");
-                clearInterval(animationIntervalId);
-                animationIntervalId = null;
+            console.log("Stopping radar animation.");
+            stopAnimationTimer();
+            isAnimationPaused = false;
+            updatePlayPauseButton();
+        }
+
+        function startAnimationTimer(mapInstance: L.Map): void {
+            stopAnimationTimer();
+            if (isAnimationPaused || radarFrameUrls.length <= 1) {
+                return;
             }
-            currentFrameIndex = 0; // Reset frame index
+            animationIntervalId = window.setInterval(() => {
+                if (!currentRadarOverlay || radarFrameUrls.length === 0) {
+                    stopAnimationTimer();
+                    return;
+                }
+                const nextIndex =
+                    (currentFrameIndex + 1) % radarFrameUrls.length;
+                displayRadarFrame(mapInstance, nextIndex);
+            }, ANIMATION_FRAME_INTERVAL_MS);
         }
 
         /**
@@ -557,53 +1511,51 @@ import Icon from "./Icon.astro";
                 console.log("Already fetching frames, skipping.");
                 return;
             }
-            stopRadarAnimation(); // Stop any previous animation
+            stopRadarAnimation();
             isFetchingFrames = true;
+            isAnimationPaused = false;
+            updatePlayPauseButton();
+            setRadarError(null);
+            setRadarLoading(true);
             console.log("Starting radar animation: fetching frames...");
 
             try {
-                radarFrameUrls = await fetchRadarImageUrls();
+                const frames = await fetchRadarFrames();
+                radarFrameUrls = frames.urls;
+                radarFrameDates = frames.dates;
 
                 if (radarFrameUrls.length === 0) {
                     console.warn(
                         "No animation frames found. Staying in static mode.",
                     );
-                    // Optionally switch back to static mode visually
                     isRadarAnimated = false;
                     updateRadarModeButton(false);
+                    setRadarError("No hay datos de radar disponibles.");
                     ensureRadarOverlay(mapInstance, ERROR_OVERLAY_URL);
+                    setScrubberVisibility(false);
+                    updateRadarTimestamp();
                     isFetchingFrames = false;
-                    return; // Exit if no frames
+                    return;
                 }
 
-                // Ensure overlay exists and set the first frame
-                ensureRadarOverlay(mapInstance, radarFrameUrls[0]);
-                currentFrameIndex = 0;
-
-                // Start the animation loop
-                animationIntervalId = window.setInterval(() => {
-                    if (!currentRadarOverlay || radarFrameUrls.length === 0) {
-                        stopRadarAnimation();
-                        return;
-                    }
-                    // Increment frame index, looping back to 0
-                    currentFrameIndex =
-                        (currentFrameIndex + 1) % radarFrameUrls.length;
-                    // Update the overlay URL to the next frame
-                    currentRadarOverlay.setUrl(
-                        radarFrameUrls[currentFrameIndex],
-                    );
-                }, ANIMATION_FRAME_INTERVAL_MS);
+                displayRadarFrame(mapInstance, 0);
+                setScrubberVisibility(true);
+                updateScrubberUi();
+                startAnimationTimer(mapInstance);
 
                 console.log("Radar animation started.");
             } catch (error) {
                 console.error("Failed to start radar animation:", error);
+                setRadarError("No se pudo cargar la animación.");
                 ensureRadarOverlay(mapInstance, ERROR_OVERLAY_URL);
-                // Optionally revert button state
                 isRadarAnimated = false;
                 updateRadarModeButton(false);
+                setScrubberVisibility(false);
+                updateRadarTimestamp();
             } finally {
-                isFetchingFrames = false; // Allow fetching again
+                isFetchingFrames = false;
+                setRadarLoading(false);
+                syncMapUrl(mapInstance);
             }
         }
 
@@ -616,25 +1568,59 @@ import Icon from "./Icon.astro";
             updateRadarModeButton(isRadarAnimated);
 
             if (isRadarAnimated) {
-                // Switched TO animated
                 startRadarAnimation(mapInstance);
             } else {
-                // Switched TO static: reuse loaded frames, fetch only if empty
                 stopRadarAnimation();
                 void showStaticRadar(mapInstance, { refetch: false });
             }
         }
+
+        function setupRadarControls(mapInstance: L.Map): void {
+            radarPlayPauseElement?.addEventListener("click", () => {
+                if (!isRadarAnimated) {
+                    return;
+                }
+                isAnimationPaused = !isAnimationPaused;
+                updatePlayPauseButton();
+                if (isAnimationPaused) {
+                    stopAnimationTimer();
+                } else {
+                    startAnimationTimer(mapInstance);
+                }
+            });
+
+            radarFrameSliderElement?.addEventListener("input", () => {
+                if (suppressScrubberInput || !radarFrameSliderElement) {
+                    return;
+                }
+                const index = Number(radarFrameSliderElement.value);
+                if (!Number.isFinite(index)) {
+                    return;
+                }
+                isAnimationPaused = true;
+                updatePlayPauseButton();
+                stopAnimationTimer();
+                displayRadarFrame(mapInstance, index);
+            });
+
+            radarOpacityElement?.addEventListener("input", () => {
+                applyRadarOverlayOpacity();
+            });
+        }
+
         function setupEventListeners(mapInstance: L.Map): void {
-            /* ... (same as before, calls toggleRadarOverlay) ... */
             if (switchButtonElement) {
                 switchButtonElement.addEventListener("click", () => {
-                    toggleRadarOverlay(mapInstance); // The core logic is now here
+                    toggleRadarOverlay(mapInstance);
                 });
             } else {
                 console.warn(
                     "Switch button element not found. Toggle functionality disabled.",
                 );
             }
+            setupRadarControls(mapInstance);
+            setupMapControlsPanel();
+            mapInstance.on("moveend", () => syncMapUrl(mapInstance));
             window.addEventListener("resize", () => {
                 mapInstance.invalidateSize();
             });
@@ -675,7 +1661,11 @@ import Icon from "./Icon.astro";
         }
 
         function handleGeolocation(mapInstance: L.Map): void {
-            /* ... (same as before) ... */
+            if (mapViewFromUrl) {
+                const center = mapInstance.getCenter();
+                fetchTemperature(center.lat, center.lng);
+                return;
+            }
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -740,9 +1730,12 @@ import Icon from "./Icon.astro";
             map = initializeMap();
             const baseLayers = getBaseLayers();
             setupThemeSwitcher(map, baseLayers);
+            applyMapViewFromUrl(map);
+            map.invalidateSize();
 
-            // Get initial state from the toggle and sync
-            isRadarAnimated = getInitialToggleState();
+            const modeFromUrl = getInitialModeFromUrl();
+            isRadarAnimated =
+                modeFromUrl ?? getInitialToggleState();
             updateRadarModeButton(isRadarAnimated);
 
             if (isRadarAnimated) {

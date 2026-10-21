@@ -10,9 +10,10 @@ import Footer from "../components/Footer.astro";
 interface Props {
 	title?: string | undefined;
 	description?: string | undefined;
+	mapPage?: boolean;
 }
 
-const { title, description } = Astro.props;
+const { title, description, mapPage = false } = Astro.props;
 ---
 
 <html lang="en">
@@ -60,10 +61,10 @@ const { title, description } = Astro.props;
 		<link rel="manifest" href="/site.webmanifest" />
 	</head>
 	<body>
-		<div class="stack backgrounds">
+		<div class:list={["stack", "backgrounds", { "page-map": mapPage }]}>
 			<Nav />
 			<slot />
-			<Footer />
+			{!mapPage && <Footer />}
 		</div>
 
 		<script>
