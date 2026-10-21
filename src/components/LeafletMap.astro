@@ -12,7 +12,7 @@ import Icon from "./Icon.astro";
 <!-- <AnimationToggle client:load/> -->
 <div id="map" class="map-container"></div>
 
-<button id="switchButton" class="switch-button">Est&aacute;tico</button>
+<button id="switchButton" class="switch-button">Ver animaci&oacute;n</button>
 
 <div id="temperatureDisplay" class="temperature-display">
     <Icon icon="weather" size="2.0em" />
@@ -213,6 +213,8 @@ import Icon from "./Icon.astro";
         );
         const USER_ICON_URL = "/assets/pin.svg";
         const ERROR_OVERLAY_URL = "/assets/radar-error.png"; // Optional error image
+        const RADAR_BUTTON_LABEL_STATIC = "Ver animación";
+        const RADAR_BUTTON_LABEL_ANIMATED = "Ver estático";
 
         // --- DOM Element References ---
         const mapElement = document.getElementById("map");
@@ -227,6 +229,16 @@ import Icon from "./Icon.astro";
             temperatureDisplayElement?.querySelector<HTMLElement>(
                 ".location-name",
             );
+
+        function updateRadarModeButton(isAnimated: boolean): void {
+            if (!switchButtonElement) {
+                return;
+            }
+            switchButtonElement.classList.toggle("active", isAnimated);
+            switchButtonElement.textContent = isAnimated
+                ? RADAR_BUTTON_LABEL_ANIMATED
+                : RADAR_BUTTON_LABEL_STATIC;
+        }
 
         // --- State Variables ---
         let map: L.Map | null = null;
@@ -558,10 +570,7 @@ import Icon from "./Icon.astro";
                     );
                     // Optionally switch back to static mode visually
                     isRadarAnimated = false;
-                    if (switchButtonElement) {
-                        switchButtonElement.classList.remove("active");
-                        switchButtonElement.textContent = "Estático";
-                    }
+                    updateRadarModeButton(false);
                     ensureRadarOverlay(mapInstance, ERROR_OVERLAY_URL);
                     isFetchingFrames = false;
                     return; // Exit if no frames
@@ -592,10 +601,7 @@ import Icon from "./Icon.astro";
                 ensureRadarOverlay(mapInstance, ERROR_OVERLAY_URL);
                 // Optionally revert button state
                 isRadarAnimated = false;
-                if (switchButtonElement) {
-                    switchButtonElement.classList.remove("active");
-                    switchButtonElement.textContent = "Estático";
-                }
+                updateRadarModeButton(false);
             } finally {
                 isFetchingFrames = false; // Allow fetching again
             }
@@ -607,14 +613,7 @@ import Icon from "./Icon.astro";
          */
         function toggleRadarOverlay(mapInstance: L.Map): void {
             isRadarAnimated = !isRadarAnimated; // Toggle the state
-
-            // Update the switch button appearance and text
-            if (switchButtonElement) {
-                switchButtonElement.classList.toggle("active", isRadarAnimated);
-                switchButtonElement.textContent = isRadarAnimated
-                    ? "Animación"
-                    : "Estático";
-            }
+            updateRadarModeButton(isRadarAnimated);
 
             if (isRadarAnimated) {
                 // Switched TO animated
@@ -744,6 +743,7 @@ import Icon from "./Icon.astro";
 
             // Get initial state from the toggle and sync
             isRadarAnimated = getInitialToggleState();
+            updateRadarModeButton(isRadarAnimated);
 
             if (isRadarAnimated) {
                 // Start with animation if toggle is checked
